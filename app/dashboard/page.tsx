@@ -16,6 +16,19 @@ type Transaction = {
   createdAt: string;
 };
 
+type UsageData = {
+  subscription_active:  boolean;
+  subscription_plan:    string;
+  monthly_budget_usd:   number;
+  used_this_month_usd:  number;
+  remaining_usd:        number;
+  pct_used:             number;
+  status:               string;
+  bot_username:         string | null;
+  bot_connected:        boolean;
+  reset_date:           string | null;
+};
+
 /* ─── Topbar ─────────────────────────────────────────────────── */
 function Topbar({ userName }: { userName?: string }) {
   const router = useRouter();
@@ -23,19 +36,17 @@ function Topbar({ userName }: { userName?: string }) {
   const [visible, setVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
-  // Smart Navigation: Hide on scroll down, show on scroll up
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
       if (currentScrollY > lastScrollY && currentScrollY > 80) {
-        setVisible(false); // scrolling down
-        setIsOpen(false);   // close menu drawer
+        setVisible(false);
+        setIsOpen(false);
       } else {
-        setVisible(true);  // scrolling up
+        setVisible(true);
       }
       setLastScrollY(currentScrollY);
     };
-
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, [lastScrollY]);
@@ -47,121 +58,110 @@ function Topbar({ userName }: { userName?: string }) {
 
   return (
     <>
-      {/* Click outside detection backdrop */}
       {isOpen && (
-        <div
-          onClick={() => setIsOpen(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 90,
-            background: "rgba(0,0,0,0.1)",
-          }}
-        />
+        <div onClick={() => setIsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.1)" }} />
       )}
-
-      <header
-        style={{
-          position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
-          background: "rgba(7,11,20,0.85)", backdropFilter: "blur(16px)",
-          borderBottom: "1px solid var(--border)",
-          padding: "0.85rem 2rem",
-          display: "flex", alignItems: "center", justifyContent: "space-between",
-          transform: visible ? "translateY(0)" : "translateY(-100%)",
-          transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s",
-        }}
-      >
+      <header style={{
+        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
+        background: "rgba(7,11,20,0.85)", backdropFilter: "blur(16px)",
+        borderBottom: "1px solid var(--border)", padding: "0.85rem 2rem",
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        transform: visible ? "translateY(0)" : "translateY(-100%)",
+        transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s",
+      }}>
         <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" }}>
           <div style={{ width: 32, height: 32, borderRadius: "9px", background: "linear-gradient(135deg, #6C3AE8, #00D4FF)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#fff", fontSize: "0.95rem" }}>K</div>
           <span style={{ fontWeight: 700, fontSize: "1rem", color: "var(--text-primary)" }}>KStudy</span>
         </Link>
-
-        {/* Desktop Links */}
         <div className="nav-right" style={{ gap: "1.25rem" }}>
-          <Link href="/" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"} onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-secondary)"}>Home</Link>
-          <Link href="/setup" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }} onMouseEnter={(e) => e.currentTarget.style.color = "var(--text-primary)"} onMouseLeave={(e) => e.currentTarget.style.color = "var(--text-secondary)"}>Setup Guide</Link>
+          <Link href="/" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Home</Link>
+          <Link href="/setup" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Setup Guide</Link>
           {userName && (
             <span style={{ fontSize: "0.83rem", color: "var(--text-muted)", borderLeft: "1px solid var(--border)", paddingLeft: "0.85rem" }}>
               👋 <strong style={{ color: "var(--text-primary)" }}>{userName.split(" ")[0]}</strong>
             </span>
           )}
-          <button
-            onClick={handleSignOut}
-            style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.6rem", padding: "0.4rem 0.85rem", color: "var(--text-muted)", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit", transition: "border-color 0.2s, color 0.2s" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--violet-light)"; e.currentTarget.style.color = "var(--text-primary)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-muted)"; }}
-          >Sign Out</button>
+          <button onClick={handleSignOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.6rem", padding: "0.4rem 0.85rem", color: "var(--text-muted)", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
         </div>
-
-        {/* Mobile Hamburger Button */}
-        <button
-          onClick={() => setIsOpen(!isOpen)}
-          style={{
-            display: "none",
-            background: "none",
-            border: "none",
-            color: "var(--text-primary)",
-            cursor: "pointer",
-            padding: "0.25rem",
-          }}
-          className="hamburger-btn"
-        >
+        <button onClick={() => setIsOpen(!isOpen)} style={{ display: "none", background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", padding: "0.25rem" }} className="hamburger-btn">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            {isOpen ? (
-              <>
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </>
-            ) : (
-              <>
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </>
-            )}
+            {isOpen ? <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></> : <><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></>}
           </svg>
         </button>
-
-        {/* Mobile dropdown drawer menu */}
         {isOpen && (
-          <div
-            className="mobile-drawer"
-            style={{
-              position: "absolute",
-              top: "100%",
-              left: 0,
-              right: 0,
-              padding: "1.5rem",
-              display: "flex",
-              flexDirection: "column",
-              gap: "1.25rem",
-              zIndex: 100,
-              marginTop: "0.5rem",
-              borderRadius: "1.25rem",
-              background: "rgba(9, 13, 24, 0.98)",
-              border: "1px solid var(--border)",
-              backdropFilter: "blur(20px)",
-              boxShadow: "0 10px 35px rgba(0,0,0,0.6)",
-              animation: "slide-down 0.25s ease-out forwards",
-            }}
-          >
+          <div className="mobile-drawer" style={{ position: "absolute", top: "100%", left: 0, right: 0, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", zIndex: 100, marginTop: "0.5rem", borderRadius: "1.25rem", background: "rgba(9, 13, 24, 0.98)", border: "1px solid var(--border)", backdropFilter: "blur(20px)", boxShadow: "0 10px 35px rgba(0,0,0,0.6)" }}>
             <Link href="/" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>Home</Link>
             <Link href="/dashboard" onClick={() => setIsOpen(false)} style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 600 }}>Profile</Link>
             <Link href="/setup" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>Setup Guide</Link>
-            <button
-              onClick={handleSignOut}
-              style={{
-                background: "none", border: "1px solid var(--border)", borderRadius: "0.75rem",
-                padding: "0.6rem", color: "#f87171", width: "100%",
-                fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit",
-              }}
-            >
-              Sign Out
-            </button>
+            <button onClick={handleSignOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.75rem", padding: "0.6rem", color: "#f87171", width: "100%", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
           </div>
         )}
       </header>
     </>
+  );
+}
+
+/* ─── Usage Card ──────────────────────────────────────────────── */
+function UsageCard({ usage }: { usage: UsageData | null }) {
+  if (!usage) {
+    return (
+      <div className="glass" style={{ padding: "1.75rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+          <span style={{ fontSize: "1.4rem" }}>📊</span>
+          <h3 style={{ fontWeight: 800, fontSize: "1.1rem" }}>Usage</h3>
+        </div>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.85rem" }}>Loading usage data...</p>
+      </div>
+    );
+  }
+
+  const barColor = usage.pct_used >= 90 ? "#ef4444" : usage.pct_used >= 70 ? "#f59e0b" : "var(--violet-light)";
+  const statusLabel = usage.status === "active" ? "🟢 Active" : usage.status === "quota_exceeded" ? "🔴 Quota Exceeded" : usage.status === "provisioning" ? "🟡 Provisioning..." : "⚪ Inactive";
+
+  return (
+    <div className="glass" style={{ padding: "1.75rem", borderLeft: `3px solid ${barColor}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+          <span style={{ fontSize: "1.4rem" }}>📊</span>
+          <h3 style={{ fontWeight: 800, fontSize: "1.1rem" }}>Usage</h3>
+        </div>
+        <span style={{ fontSize: "0.78rem", fontWeight: 600 }}>{statusLabel}</span>
+      </div>
+
+      {/* Usage bar */}
+      <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: "9999px", height: 8, marginBottom: "1rem", overflow: "hidden" }}>
+        <div style={{ width: `${usage.pct_used}%`, height: "100%", borderRadius: "9999px", background: barColor, transition: "width 0.6s ease" }} />
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Used</div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>${usage.used_this_month_usd.toFixed(2)}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Remaining</div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 800, color: usage.remaining_usd > 0 ? "#22c55e" : "#ef4444" }}>${usage.remaining_usd.toFixed(2)}</div>
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Budget</div>
+          <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>${usage.monthly_budget_usd.toFixed(2)}</div>
+        </div>
+      </div>
+
+      {/* Bot info */}
+      {usage.bot_connected && (
+        <div style={{ borderTop: "1px solid var(--border)", paddingTop: "0.85rem", fontSize: "0.82rem", color: "var(--text-secondary)" }}>
+          🤖 Bot: <strong style={{ color: "var(--cyan)" }}>@{usage.bot_username || "unknown"}</strong>
+        </div>
+      )}
+
+      {usage.reset_date && (
+        <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "0.5rem" }}>
+          📅 Resets: {new Date(usage.reset_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -170,17 +170,22 @@ export default function DashboardPage() {
   const { data: session, isPending } = useSession();
   const [txs, setTxs]                = useState<Transaction[]>([]);
   const [loadingTxs, setLoadingTxs]  = useState(true);
+  const [usage, setUsage]            = useState<UsageData | null>(null);
 
   // Fetch transaction history
   useEffect(() => {
     if (session?.user) {
       fetch("/api/transactions")
         .then((res) => res.json())
-        .then((data) => {
-          if (data.transactions) setTxs(data.transactions);
-        })
-        .catch((err) => console.error(err))
+        .then((data) => { if (data.transactions) setTxs(data.transactions); })
+        .catch(() => {})
         .finally(() => setLoadingTxs(false));
+
+      // Fetch usage data
+      fetch("/api/usage")
+        .then((res) => res.json())
+        .then((data) => { if (!data.error) setUsage(data); })
+        .catch(() => {});
     }
   }, [session]);
 
@@ -194,7 +199,6 @@ export default function DashboardPage() {
   }
 
   const user = session?.user;
-  // Get dynamic subscription info (from database addition fields mapped via better auth)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const isSubscribed = (user as any)?.subscriptionActive;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,7 +214,6 @@ export default function DashboardPage() {
 
       <main style={{ minHeight: "100vh", maxWidth: 1100, margin: "0 auto", padding: "100px 1.5rem 4rem" }}>
         
-        {/* Orbs */}
         <div className="orb orb-1" />
         <div className="orb orb-2" style={{ top: "40%", right: "-10%" }} />
 
@@ -221,7 +224,7 @@ export default function DashboardPage() {
             Account <span className="gradient-text">Profile</span>
           </h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginTop: "0.25rem" }}>
-            Manage your subscription, view transaction history, and configure your Telegram bot.
+            Manage your subscription, view usage, and configure your Telegram bot.
           </p>
         </div>
 
@@ -302,9 +305,12 @@ export default function DashboardPage() {
 
           </div>
 
-          {/* Right Column — Bot config & Transactions */}
+          {/* Right Column — Usage, Bot config & Transactions */}
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             
+            {/* Usage Card */}
+            <UsageCard usage={usage} />
+
             {/* Telegram Bot Details */}
             <div className="glass" style={{ padding: "1.75rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
@@ -319,13 +325,15 @@ export default function DashboardPage() {
                 <div style={{ background: "rgba(108,58,232,0.06)", border: "1px solid rgba(108,58,232,0.2)", borderRadius: "1rem", padding: "1.25rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
                     <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--text-primary)" }}>Status</span>
-                    <span className="badge badge-violet" style={{ fontSize: "0.75rem" }}>Connected</span>
+                    <span className="badge badge-violet" style={{ fontSize: "0.75rem" }}>{usage?.bot_connected ? "Connected" : "Not Connected"}</span>
                   </div>
-                  <p style={{ fontSize: "0.83rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
-                    Hermes AI is connected to your bot. If you need to reconfigure or connect a new token, follow our step-by-step setup guide.
-                  </p>
+                  {usage?.bot_username && (
+                    <p style={{ fontSize: "0.83rem", color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                      Bot: <strong style={{ color: "var(--cyan)" }}>@{usage.bot_username}</strong>
+                    </p>
+                  )}
                   <Link href="/setup" style={{ display: "inline-block", marginTop: "1rem", color: "var(--cyan)", fontSize: "0.82rem", textDecoration: "none", fontWeight: 600 }}>
-                    Re-run Telegram Setup Guide →
+                    {usage?.bot_connected ? "Re-run Setup Guide →" : "Connect Your Bot →"}
                   </Link>
                 </div>
               ) : (

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/db";
 
+const PROVISION_API_URL = process.env.HERMES_PROVISION_URL || "http://127.0.0.1:8645/provision";
+const PROVISION_API_SECRET = process.env.PROVISION_API_SECRET || "";
+
 export async function POST(req: NextRequest) {
   try {
     const { token, code } = await req.json();
@@ -31,6 +34,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Your subscription is not active. Please upgrade or subscribe first." }, { status: 403 });
     }
 
+    // Fetch bot info from Telegram to get username and chat_id
+    let botUsername = "";
+    let botFirstName = "";
+    try {
+      const botInfoRes = await fetch(`https://api.telegram.org/bot${token.trim()}/getMe`);
+      if (botInfoRes.ok) {
+        const botInfo = await botInfoRes.json();
+        botUsername   = botInfo.result?.username || "";
+        botFirstName  = botInfo.result?.first_name || "";
+      }
+    } catch (e) {
+      console.warn("Could not fetch bot info from Telegram:", e);
+    }
+
     // Save Telegram bot connection to the user document
     await db.collection("user").updateOne(
       { _id: user._id },
@@ -39,14 +56,79 @@ export async function POST(req: NextRequest) {
           telegramBotToken:     token.trim(),
           telegramBotConnected: true,
           telegramBotLinkedAt:  new Date(),
+          bot_username:         botUsername,
+          bot_first_name:       botFirstName,
         }
       }
     );
 
+    // ── Call Hermes Provision API to create the profile and start the bot ──
+    let provisionResult: { ok: boolean; profile?: string; bot_username?: string; error?: string } = { ok: false, error: "not attempted" };
+
+    if (PROVISION_API_SECRET) {
+      try {
+        const provRes = await fetch(PROVISION_API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${PROVISION_API_SECRET}`,
+          },
+          body: JSON.stringify({
+            customer_id: user.email || String(user._id),
+            bot_token:   token.trim(),
+            tg_user_id:  user.telegramChatId || "",
+            email:       user.email,
+          }),
+          signal: AbortSignal.timeout(30000), // 30s timeout
+        });
+
+        provisionResult = await provRes.json();
+
+        // Update MongoDB with provisioning result
+        if (provisionResult.ok) {
+          await db.collection("user").updateOne(
+            { _id: user._id },
+            {
+              $set: {
+                status:              "active",
+                profile_name:        provisionResult.profile || "",
+                provisioned_at:      new Date(),
+                monthly_budget_usd:  user.monthly_budget_usd ?? 1.50,
+                used_this_month_usd: user.used_this_month_usd ?? 0,
+              }
+            }
+          );
+        } else {
+          await db.collection("user").updateOne(
+            { _id: user._id },
+            { $set: { status: "provision_failed", provision_error: provisionResult.error } }
+          );
+        }
+      } catch (provErr) {
+        console.error("Hermes provision API call failed:", provErr);
+        provisionResult = { ok: false, error: "Provision API unreachable" };
+
+        await db.collection("user").updateOne(
+          { _id: user._id },
+          { $set: { status: "provision_pending", note: "Token saved, provisioning will retry via watcher" } }
+        );
+      }
+    } else {
+      // No provision secret configured — just save the token, watcher will pick it up
+      await db.collection("user").updateOne(
+        { _id: user._id },
+        { $set: { status: "pending_profile", note: "Token saved, waiting for provision watcher" } }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      message: "Hermes connected to your Telegram bot successfully!",
+      message: provisionResult.ok
+        ? "Hermes connected to your Telegram bot successfully!"
+        : "Bot token saved. Provisioning will complete shortly.",
       email: user.email,
+      bot_username: botUsername,
+      provisioned: provisionResult.ok,
     });
 
   } catch (err) {
