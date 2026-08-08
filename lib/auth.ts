@@ -62,6 +62,14 @@ export async function getAuth(): Promise<any> {
         subscription_period_end: { type: "date", required: false  },
       },
     },
+    advanced: {
+      cookiePrefix: "kstudy",
+      crossSubDomainCookies: { enabled: false },
+      defaultCookieAttributes: {
+        secure: true,
+        sameSite: "lax",
+      },
+    },
   });
 
   return authInstance;
