@@ -16,6 +16,10 @@ export async function getAuth(): Promise<any> {
     secret:  process.env.BETTER_AUTH_SECRET ?? "change-me-in-production",
     baseURL: process.env.BETTER_AUTH_URL   ?? "http://localhost:3000",
 
+    logger: {
+      level: "debug",
+    },
+
     // ── Database ──────────────────────────────────────────────
     database: mongodbAdapter(db, {
       client: client,
@@ -62,6 +66,7 @@ export async function getAuth(): Promise<any> {
         subscription_period_end: { type: "date", required: false  },
       },
     },
+
     advanced: {
       cookiePrefix: "kstudy",
       crossSubDomainCookies: { enabled: false },
