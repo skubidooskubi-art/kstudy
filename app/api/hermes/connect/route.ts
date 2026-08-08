@@ -1,32 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/db";
+import { getAuth } from "@/lib/auth";
 
 const PROVISION_API_URL = process.env.HERMES_PROVISION_URL || "http://127.0.0.1:8645/provision";
 const PROVISION_API_SECRET = process.env.PROVISION_API_SECRET || "";
 
 export async function POST(req: NextRequest) {
   try {
-    const { token, code } = await req.json();
+    const { token } = await req.json();
 
-    if (!token || !code) {
-      return NextResponse.json({ error: "Missing bot token or access code." }, { status: 400 });
+    if (!token) {
+      return NextResponse.json({ error: "Missing bot token." }, { status: 400 });
     }
 
     if (!token.includes(":")) {
       return NextResponse.json({ error: "Invalid Telegram bot token format." }, { status: 400 });
     }
 
+    // Get session from cookie to identify the logged-in user
+    const auth = await getAuth();
+    const session = await auth.api.getSession({ headers: req.headers });
+
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "You must be signed in to connect a bot." }, { status: 401 });
+    }
+
     const client = await clientPromise;
     const db     = client.db("kstudy");
 
-    // Format code: KSTUDY-XXXXXX (case-insensitive & whitespace trimmed)
-    const formattedCode = code.trim().toUpperCase();
-
-    // Verify user by accessCode
-    const user = await db.collection("user").findOne({ accessCode: formattedCode });
+    // Find user by email from session
+    const user = await db.collection("user").findOne({ email: session.user.email });
 
     if (!user) {
-      return NextResponse.json({ error: "Invalid access code. Please check your email or contact support." }, { status: 404 });
+      return NextResponse.json({ error: "User not found. Please contact support." }, { status: 404 });
     }
 
     // Verify subscription status

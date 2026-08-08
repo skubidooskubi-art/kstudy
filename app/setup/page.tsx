@@ -204,7 +204,6 @@ function ChatPreview({ lines }: { lines: { role: "bot" | "user"; text: string }[
 /* ─── Token submit form ──────────────────────────────────────── */
 function TokenForm({ email }: { email?: string }) {
   const [token, setToken]       = useState("");
-  const [code, setCode]         = useState("");
   const [status, setStatus]     = useState<"idle" | "loading" | "done" | "error">("idle");
   const [errMsg, setErrMsg]     = useState("");
 
@@ -221,7 +220,7 @@ function TokenForm({ email }: { email?: string }) {
       const res = await fetch("/api/hermes/connect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, code }),
+        body: JSON.stringify({ token }),
       });
 
       const data = await res.json();
@@ -276,18 +275,6 @@ function TokenForm({ email }: { email?: string }) {
           onBlur={(e)  => { e.target.style.borderColor = "rgba(108,58,232,0.25)"; e.target.style.boxShadow = "none"; }}
         />
       </div>
-      <div>
-        <label style={{ fontSize: "0.73rem", color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: "0.35rem", letterSpacing: "0.05em" }}>KSTUDY ACCESS CODE (from email)</label>
-        <input
-          required
-          placeholder="KSTUDY-XXXXXX"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          style={{ ...inp, fontFamily: "var(--font-geist-mono), monospace", letterSpacing: "0.06em", textTransform: "uppercase" }}
-          onFocus={(e) => { e.target.style.borderColor = "var(--violet-light)"; e.target.style.boxShadow = "0 0 0 3px rgba(108,58,232,0.15)"; }}
-          onBlur={(e)  => { e.target.style.borderColor = "rgba(108,58,232,0.25)"; e.target.style.boxShadow = "none"; }}
-        />
-      </div>
       <button
         type="submit"
         className="btn-primary"
@@ -335,27 +322,7 @@ function buildSteps(email?: string): Step[] {
       ),
     },
     {
-      id: 2, icon: "📧",
-      title: "Find Your Access Code",
-      desc: "Check your email inbox",
-      content: (
-        <div>
-          <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "0.75rem" }}>
-            We sent a unique <strong style={{ color: "var(--text-primary)" }}>KStudy Access Code</strong> to{" "}
-            <strong style={{ color: "var(--cyan)" }}>{email ?? "your email"}</strong> right after payment. Check your inbox (and spam folder).
-          </p>
-          <div style={{ background: "rgba(0,212,255,0.06)", border: "1px solid rgba(0,212,255,0.2)", borderRadius: "0.9rem", padding: "1rem 1.25rem" }}>
-            <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginBottom: "0.4rem" }}>It looks like this:</div>
-            <code style={{ fontFamily: "var(--font-geist-mono), monospace", fontSize: "1rem", color: "var(--cyan)", fontWeight: 700, letterSpacing: "0.1em" }}>KSTUDY-A3BX9Z</code>
-          </div>
-          <p style={{ marginTop: "0.75rem", fontSize: "0.8rem", color: "var(--text-muted)" }}>
-            ⚠️ Keep this code private — you'll need it in Step 5 to activate your bot.
-          </p>
-        </div>
-      ),
-    },
-    {
-      id: 3, icon: "🤖",
+      id: 2, icon: "🤖",
       title: "Open @BotFather on Telegram",
       desc: "Find the official Telegram bot creator",
       content: (
@@ -381,7 +348,7 @@ function buildSteps(email?: string): Step[] {
       ),
     },
     {
-      id: 4, icon: "⚙️",
+      id: 3, icon: "⚙️",
       title: "Create Your Personal Bot",
       desc: "Run /newbot and get your API token",
       content: (
@@ -421,20 +388,20 @@ function buildSteps(email?: string): Step[] {
       ),
     },
     {
-      id: 5, icon: "🔌",
+      id: 4, icon: "🔌",
       title: "Connect Hermes to Your Bot",
-      desc: "Paste your token + access code",
+      desc: "Paste your token and you're live",
       content: (
         <div>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "1rem" }}>
-            Paste your <strong style={{ color: "var(--text-primary)" }}>BotFather API token</strong> and your <strong style={{ color: "var(--cyan)" }}>KStudy access code</strong> below. We'll wire Hermes AI directly into your personal bot.
+            Paste your <strong style={{ color: "var(--text-primary)" }}>BotFather API token</strong> below. We'll wire Hermes AI directly into your personal bot.
           </p>
           <TokenForm email={email} />
         </div>
       ),
     },
     {
-      id: 6, icon: "🚀",
+      id: 5, icon: "🚀",
       title: "You're All Set!",
       desc: "Start chatting with your AI agent",
       content: (
