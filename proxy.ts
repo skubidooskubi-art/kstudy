@@ -9,7 +9,6 @@ const PROTECTED = ["/setup", "/dashboard"];
 const AUTH_ONLY = ["/sign-in", "/sign-up"];
 
 export const config = {
-  runtime: "nodejs",
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
 
