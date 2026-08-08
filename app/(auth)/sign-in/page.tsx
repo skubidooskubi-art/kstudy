@@ -54,13 +54,13 @@ function SignInForm() {
         callbackURL: redirect,
       });
       console.log("[SIGN-IN] signIn.social result:", JSON.stringify(result, null, 2));
-      console.log("[SIGN-IN] result.url:", result?.url);
+      console.log("[SIGN-IN] result.data.url:", result?.data?.url);
       console.log("[SIGN-IN] result.error:", result?.error);
       console.log("[SIGN-IN] result.data:", result?.data);
 
-      if (result?.url) {
-        console.log("[SIGN-IN] Redirecting to:", result.url);
-        window.location.href = result.url;
+      if (result?.data?.url) {
+        console.log("[SIGN-IN] Redirecting to:", result.data.url);
+        window.location.href = result.data.url;
       }
     } catch (err: any) {
       console.error("[SIGN-IN] Google sign-in error:", err);
