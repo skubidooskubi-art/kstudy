@@ -42,28 +42,61 @@ function SignInForm() {
 
   /* ── Google sign-in ─────────────────────────── */
   async function handleGoogle() {
+    console.log("[SIGN-IN] Google sign-in started");
+    console.log("[SIGN-IN] redirect:", redirect);
+    console.log("[SIGN-IN] window.location.origin:", window.location.origin);
     setLoading("google");
     setError("");
-    await signIn.social({
-      provider:    "google",
-      callbackURL: redirect,
-    });
-    setLoading(null);
+    try {
+      console.log("[SIGN-IN] Calling signIn.social({ provider: 'google', callbackURL: redirect })");
+      const result = await signIn.social({
+        provider:    "google",
+        callbackURL: redirect,
+      });
+      console.log("[SIGN-IN] signIn.social result:", JSON.stringify(result, null, 2));
+      console.log("[SIGN-IN] result.url:", result?.url);
+      console.log("[SIGN-IN] result.error:", result?.error);
+      console.log("[SIGN-IN] result.data:", result?.data);
+
+      if (result?.url) {
+        console.log("[SIGN-IN] Redirecting to:", result.url);
+        window.location.href = result.url;
+      }
+    } catch (err: any) {
+      console.error("[SIGN-IN] Google sign-in error:", err);
+      console.error("[SIGN-IN] Error message:", err.message);
+      console.error("[SIGN-IN] Error stack:", err.stack);
+      setError(err.message || "Google sign-in failed. Please try again.");
+    } finally {
+      setLoading(null);
+    }
   }
 
   /* ── Email sign-in ──────────────────────────── */
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
+    console.log("[SIGN-IN] Email sign-in started");
+    console.log("[SIGN-IN] email:", email);
+    console.log("[SIGN-IN] redirect:", redirect);
     setLoading("email");
     setError("");
     try {
+      console.log("[SIGN-IN] Calling signIn.email({ email, password, callbackURL: redirect })");
       const result = await signIn.email({ email, password, callbackURL: redirect });
+      console.log("[SIGN-IN] signIn.email result:", JSON.stringify(result, null, 2));
+      console.log("[SIGN-IN] result.error:", result?.error);
+      console.log("[SIGN-IN] result.data:", result?.data);
+
       if (result?.error) {
+        console.log("[SIGN-IN] Auth error:", result.error.message);
         setError(result.error.message ?? "Invalid email or password.");
       } else {
+        console.log("[SIGN-IN] Email sign-in successful, redirecting to:", redirect);
         router.push(redirect);
       }
-    } catch {
+    } catch (err: any) {
+      console.error("[SIGN-IN] Email sign-in error:", err);
+      console.error("[SIGN-IN] Error message:", err.message);
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(null);

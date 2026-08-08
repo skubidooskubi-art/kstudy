@@ -8,8 +8,16 @@ let authInstance: any = null;
 export async function getAuth(): Promise<any> {
   if (authInstance) return authInstance;
 
+  console.log("[AUTH] Initializing Better Auth...");
+
   const client = await clientPromise;
   const db     = client.db("kstudy");
+
+  console.log("[AUTH] MongoDB connected, database:", db.databaseName);
+  console.log("[AUTH] baseURL:", process.env.BETTER_AUTH_URL);
+  console.log("[AUTH] secret set:", !!process.env.BETTER_AUTH_SECRET);
+  console.log("[AUTH] GOOGLE_CLIENT_ID set:", !!process.env.GOOGLE_CLIENT_ID);
+  console.log("[AUTH] GOOGLE_CLIENT_SECRET set:", !!process.env.GOOGLE_CLIENT_SECRET);
 
   authInstance = betterAuth({
     // ── Secret & Base URL ─────────────────────────────────────
@@ -77,5 +85,6 @@ export async function getAuth(): Promise<any> {
     },
   });
 
+  console.log("[AUTH] Better Auth initialized successfully");
   return authInstance;
 }
