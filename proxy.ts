@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { getAuth } from "@/lib/auth";
 
 // Routes requiring authentication
 const PROTECTED = ["/setup", "/dashboard"];
 
 // Routes logged-in users should skip (redirect to /setup)
 const AUTH_ONLY = ["/sign-in", "/sign-up"];
+
+export const config = {
+  runtime: "nodejs",
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+};
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -24,19 +30,16 @@ export default async function proxy(request: NextRequest) {
 
   if (!isProtected && !isAuthOnly) return NextResponse.next();
 
-  // Check the Better Auth session cookie via internal API call
+  // Check session in-process (no self-fetch to avoid Docker hairpin NAT)
   let isLoggedIn = false;
   try {
-    const baseUrl  = request.nextUrl.origin;
-    const response = await fetch(`${baseUrl}/api/auth/get-session`, {
-      headers: { cookie: request.headers.get("cookie") ?? "" },
+    const auth = await getAuth();
+    const session = await auth.api.getSession({
+      headers: request.headers,
     });
-    if (response.ok) {
-      const data = await response.json();
-      isLoggedIn = !!data?.user;
-    }
-  } catch {
-    // Treat any error as unauthenticated
+    isLoggedIn = !!session?.user;
+  } catch (err: any) {
+    console.error("[PROXY] Session check error:", err.message);
   }
 
   if (isProtected && !isLoggedIn) {
@@ -51,7 +54,3 @@ export default async function proxy(request: NextRequest) {
 
   return NextResponse.next();
 }
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-};
