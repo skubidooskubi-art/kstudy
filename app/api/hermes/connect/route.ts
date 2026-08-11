@@ -127,14 +127,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!provisionResult.ok) {
+      // Be honest: token saved, but provisioning did not complete.
+      // The profile watcher retries automatically, but the UI must not
+      // claim "connected" when the bot is not actually running.
+      return NextResponse.json({
+        success: false,
+        error: provisionResult.error || "Provisioning failed. Please try again or contact support.",
+        provisioned: false,
+      }, { status: 502 });
+    }
+
     return NextResponse.json({
       success: true,
-      message: provisionResult.ok
-        ? "Hermes connected to your Telegram bot successfully!"
-        : "Bot token saved. Provisioning will complete shortly.",
+      message: "Hermes connected to your Telegram bot successfully!",
       email: user.email,
       bot_username: botUsername,
-      provisioned: provisionResult.ok,
+      provisioned: true,
     });
 
   } catch (err) {

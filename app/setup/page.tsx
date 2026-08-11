@@ -227,6 +227,9 @@ function TokenForm({ email }: { email?: string }) {
       if (!res.ok) {
         setErrMsg(data.error || "Failed to connect bot.");
         setStatus("error");
+      } else if (!data.provisioned) {
+        setErrMsg(data.error || "Bot token saved, but provisioning is still in progress. It will activate automatically within a minute — if not, please contact support.");
+        setStatus("error");
       } else {
         setStatus("done");
       }
