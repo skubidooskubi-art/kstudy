@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
             "Authorization": `Bearer ${PROVISION_API_SECRET}`,
           },
           body: JSON.stringify({
-            customer_id: user.email || String(user._id),
+            customer_id: `cust_${String(user._id)}`,
             bot_token:   token.trim(),
             tg_user_id:  user.telegramChatId || "",
             email:       user.email,

@@ -396,6 +396,9 @@ function buildSteps(email?: string): Step[] {
           <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "1rem" }}>
             Paste your <strong style={{ color: "var(--text-primary)" }}>BotFather API token</strong> below. We'll wire Hermes AI directly into your personal bot.
           </p>
+          <div style={{ marginBottom: "1rem", background: "rgba(108,58,232,0.1)", border: "1px solid rgba(108,58,232,0.3)", borderRadius: "0.75rem", padding: "0.75rem 1rem", fontSize: "0.82rem", color: "var(--cyan)" }}>
+            🔒 <strong>Important:</strong> Message your bot immediately after creating it, before sharing its link with anyone else — the first person to message it becomes its only authorized user.
+          </div>
           <TokenForm email={email} />
         </div>
       ),
