@@ -75,6 +75,7 @@ function Topbar({ userName }: { userName?: string }) {
         </Link>
         <div className="nav-right" style={{ gap: "1.25rem" }}>
           <Link href="/" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Home</Link>
+          <Link href="/chat" style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 600 }}>AI Assistant</Link>
           <Link href="/setup" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Setup Guide</Link>
           {userName && (
             <span style={{ fontSize: "0.83rem", color: "var(--text-muted)", borderLeft: "1px solid var(--border)", paddingLeft: "0.85rem" }}>
@@ -92,6 +93,7 @@ function Topbar({ userName }: { userName?: string }) {
           <div className="mobile-drawer" style={{ position: "absolute", top: "100%", left: 0, right: 0, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", zIndex: 100, marginTop: "0.5rem", borderRadius: "1.25rem", background: "rgba(9, 13, 24, 0.98)", border: "1px solid var(--border)", backdropFilter: "blur(20px)", boxShadow: "0 10px 35px rgba(0,0,0,0.6)" }}>
             <Link href="/" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>Home</Link>
             <Link href="/dashboard" onClick={() => setIsOpen(false)} style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 600 }}>Profile</Link>
+            <Link href="/chat" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>AI Assistant</Link>
             <Link href="/setup" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>Setup Guide</Link>
             <button onClick={handleSignOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.75rem", padding: "0.6rem", color: "#f87171", width: "100%", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
           </div>

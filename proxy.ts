@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { getAuth } from "@/lib/auth";
 
 // Routes requiring authentication
-const PROTECTED = ["/setup", "/dashboard"];
+const PROTECTED = ["/setup", "/dashboard", "/chat"];
 
 // Routes logged-in users should skip (redirect to /setup)
 const AUTH_ONLY = ["/sign-in", "/sign-up"];
