@@ -15,6 +15,17 @@ export const config = {
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Add the X-Forwarded-Prefix header for Hermes Chat requests
+  if (pathname.startsWith("/hermes-chat")) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set("x-forwarded-prefix", "/hermes-chat");
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+
   // Pass through API and static asset requests
   if (
     pathname.startsWith("/api/") ||
