@@ -39,6 +39,8 @@ export async function POST(req: NextRequest) {
       const userName = user?.name;
 
       // Update user subscription status & assign access code
+      // Renewal = NEW subscription cycle: reset ALL usage/credit to 0 so
+      // the user gets their fresh credit allowance for the new 30 days.
       await db.collection("user").updateOne(
         { email },
         {
@@ -50,9 +52,36 @@ export async function POST(req: NextRequest) {
             // Amount is in kobo (NGN) — divide by 100
             amountPaid:         amount / 100,
             accessCode:         accessCode,
+            // ── fresh cycle: reset usage to 0 ──
+            used_this_month_usd: 0.0,
+            last_used:           "",
+            last_reset_at:       new Date(),
           },
         }
       );
+
+      // Mirror the fresh state into Redis immediately (if configured).
+      // If REDIS_URI is not set here, quota_engine's lazy sync picks it
+      // up from Mongo within ~60s automatically.
+      try {
+        const redisUri = process.env.REDIS_URI;
+        if (redisUri) {
+          const { createClient } = await import("redis");
+          const redis = createClient({ url: redisUri });
+          redis.on("error", () => {});
+          await redis.connect();
+          const profile = user?.profile_name || `cust_${user?._id}`;
+          const p = redis.multi();
+          p.set(`kstudy:quota:${profile}:used`, "0");
+          p.set(`kstudy:quota:${profile}:limit`, String(user?.monthly_budget_usd ?? 1.5));
+          p.set(`kstudy:quota:${profile}:subscription`, "1");
+          p.set(`kstudy:quota:${profile}:plan`, plan);
+          await p.exec();
+          await redis.quit();
+        }
+      } catch (redisErr) {
+        console.error("Webhook Redis mirror failed (non-fatal):", redisErr);
+      }
 
       // Log the transaction
       await db.collection("transactions").insertOne({
