@@ -113,7 +113,7 @@ export default function HermesChatPage() {
         )}
 
         <iframe
-          src="/hermes-chat"
+          src="/hermes-chat/"
           style={{ width: "100%", height: "calc(100vh - 64px)", border: "none", outline: "none", background: "#0a0e1a" }}
           title="KStudy AI Assistant"
           allow="clipboard-write; microphone"
