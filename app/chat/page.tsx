@@ -27,6 +27,40 @@ interface ChatMessage {
   };
 }
 
+interface SessionItem {
+  session_id: string;
+  title?: string;
+  created_at?: number;
+  updated_at?: number;
+  message_count?: number;
+}
+
+/* ─── Text Sanitization Helpers ────────────────────────────────── */
+function sanitizeText(raw: string): string {
+  if (!raw) return "";
+
+  let cleaned = raw;
+
+  // 1. Strip <untrusted_tool_result> wrappers
+  cleaned = cleaned.replace(/<untrusted_tool_result[\s\S]*?<\/untrusted_tool_result>/g, "");
+
+  // 2. Strip system prompt injections or raw JSON tool results
+  const trimmed = cleaned.trim();
+  if (
+    (trimmed.startsWith("{") && trimmed.endsWith("}") && (
+      trimmed.includes('"success":') ||
+      trimmed.includes('"processes":') ||
+      trimmed.includes('"results":') ||
+      trimmed.includes('"choices_offered":') ||
+      trimmed.includes('"link":')
+    ))
+  ) {
+    return ""; // Filter raw system tool output JSON objects
+  }
+
+  return cleaned;
+}
+
 /* ─── Topbar ─────────────────────────────────────────────────── */
 function Topbar({ userName }: { userName?: string }) {
   const router = useRouter();
@@ -103,9 +137,10 @@ function formatBytes(bytes?: number): string {
 
 /* ─── Simple Markdown Renderer ────────────────────────────────── */
 function FormattedMessage({ text }: { text: string }) {
-  if (!text) return null;
+  const clean = sanitizeText(text);
+  if (!clean) return null;
 
-  const blocks = text.split(/(```[\s\S]*?```)/g);
+  const blocks = clean.split(/(```[\s\S]*?```)/g);
 
   return (
     <div style={{ lineHeight: 1.6, fontSize: "0.92rem", wordBreak: "break-word" }}>
@@ -167,6 +202,11 @@ export default function HermesChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
+  // Chat History Sidebar State
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [sessionList, setSessionList] = useState<SessionItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -183,6 +223,58 @@ export default function HermesChatPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
+  // Fetch session history list
+  const fetchSessionList = useCallback(async () => {
+    setLoadingHistory(true);
+    try {
+      const res = await fetch("/api/hermes/session/list");
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.sessions)) {
+          setSessionList(data.sessions);
+        }
+      }
+    } catch (err) {
+      console.error("[KStudy Chat] Error fetching session list:", err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  }, []);
+
+  // Switch to a chosen past session
+  const handleSwitchSession = async (targetSid: string) => {
+    if (isStreaming || isUploading || targetSid === sessionId) return;
+
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
+    try {
+      setStatusMessage("Loading conversation...");
+      const res = await fetch(`/api/hermes/session?session_id=${encodeURIComponent(targetSid)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.session) {
+          setSessionId(data.session.session_id);
+          if (typeof window !== "undefined") {
+            localStorage.setItem("kstudy_chat_sid", data.session.session_id);
+          }
+          if (Array.isArray(data.session.messages)) {
+            setMessages(data.session.messages);
+          } else {
+            setMessages([]);
+          }
+          setIsHistoryOpen(false);
+        }
+      }
+    } catch (err) {
+      console.error("[KStudy Chat] Error switching session:", err);
+    } finally {
+      setStatusMessage(null);
+    }
+  };
+
   // Load or create a session for the user ONCE
   const initSession = useCallback(async () => {
     try {
@@ -190,7 +282,6 @@ export default function HermesChatPage() {
       const savedSid = typeof window !== "undefined" ? localStorage.getItem("kstudy_chat_sid") : null;
 
       if (savedSid) {
-        console.log("[KStudy Chat] Loading existing session:", savedSid);
         const res = await fetch(`/api/hermes/session?session_id=${encodeURIComponent(savedSid)}`);
         if (res.ok) {
           const data = await res.json();
@@ -205,7 +296,6 @@ export default function HermesChatPage() {
         }
       }
 
-      console.log("[KStudy Chat] Creating new session...");
       const newRes = await fetch("/api/hermes/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -215,7 +305,6 @@ export default function HermesChatPage() {
       if (newRes.ok) {
         const newData = await newRes.json();
         const newSid = newData.session.session_id;
-        console.log("[KStudy Chat] Created new session ID:", newSid);
         setSessionId(newSid);
         if (typeof window !== "undefined") {
           localStorage.setItem("kstudy_chat_sid", newSid);
@@ -261,6 +350,7 @@ export default function HermesChatPage() {
           localStorage.setItem("kstudy_chat_sid", newSid);
         }
         setMessages([]);
+        setIsHistoryOpen(false);
       }
     } catch (err) {
       console.error("[KStudy Chat] New conversation error:", err);
@@ -295,20 +385,22 @@ export default function HermesChatPage() {
 
   // Helper to append token text to assistant message
   const appendTokenToLastAssistant = (tokenText: string) => {
-    if (!tokenText) return;
+    const cleanToken = sanitizeText(tokenText);
+    if (!cleanToken) return;
+
     setMessages((prev) => {
       const updated = [...prev];
       if (updated.length === 0) {
-        return [{ role: "assistant", content: tokenText, isStreaming: true }];
+        return [{ role: "assistant", content: cleanToken, isStreaming: true }];
       }
       const last = updated[updated.length - 1];
       if (last && last.role === "assistant") {
         updated[updated.length - 1] = {
           ...last,
-          content: last.content + tokenText,
+          content: last.content + cleanToken,
         };
       } else {
-        updated.push({ role: "assistant", content: tokenText, isStreaming: true });
+        updated.push({ role: "assistant", content: cleanToken, isStreaming: true });
       }
       return updated;
     });
@@ -407,8 +499,6 @@ export default function HermesChatPage() {
         throw new Error("No stream_id returned from Hermes.");
       }
 
-      console.log("[KStudy Chat] Connected stream ID:", streamId);
-
       // Step 4: Connect SSE EventSource via Next.js unbuffered stream proxy
       const es = new EventSource(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`);
       eventSourceRef.current = es;
@@ -420,7 +510,8 @@ export default function HermesChatPage() {
             appendTokenToLastAssistant(data.text);
           }
         } catch (e) {
-          console.warn("[KStudy Chat] SSE parse error:", e);
+          // If not JSON, append text directly if safe
+          appendTokenToLastAssistant(rawData);
         }
       };
 
@@ -518,6 +609,72 @@ export default function HermesChatPage() {
     <div style={{ minHeight: "100vh", background: "#070b14", color: "var(--text-primary)", display: "flex", flexDirection: "column", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
       <Topbar userName={user?.name} />
 
+      {/* Chat History Slide-Over Drawer */}
+      {isHistoryOpen && (
+        <>
+          <div
+            onClick={() => setIsHistoryOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 110, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          />
+          <div style={{
+            position: "fixed", top: 0, bottom: 0, right: 0, width: "340px", maxWidth: "85vw",
+            zIndex: 120, background: "rgba(15, 23, 42, 0.98)", borderLeft: "1px solid rgba(255,255,255,0.12)",
+            padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem",
+            boxShadow: "-10px 0 35px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.75rem" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "1.2rem" }}>📜</span>
+                <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "#f8fafc" }}>Chat History</h3>
+              </div>
+              <button
+                onClick={() => setIsHistoryOpen(false)}
+                style={{ background: "none", border: "none", color: "#94a3b8", fontSize: "1.2rem", cursor: "pointer" }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {loadingHistory ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "#94a3b8", fontSize: "0.85rem" }}>
+                Loading past conversations...
+              </div>
+            ) : sessionList.length === 0 ? (
+              <div style={{ padding: "2rem", textAlign: "center", color: "#64748b", fontSize: "0.85rem" }}>
+                No prior conversations found.
+              </div>
+            ) : (
+              <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                {sessionList.map((item) => {
+                  const isActive = item.session_id === sessionId;
+
+                  return (
+                    <button
+                      key={item.session_id}
+                      onClick={() => handleSwitchSession(item.session_id)}
+                      style={{
+                        textAlign: "left", padding: "0.75rem 0.85rem", borderRadius: "0.75rem",
+                        background: isActive ? "rgba(99, 102, 241, 0.2)" : "rgba(255,255,255,0.04)",
+                        border: isActive ? "1px solid rgba(99, 102, 241, 0.5)" : "1px solid rgba(255,255,255,0.06)",
+                        cursor: isActive ? "default" : "pointer", transition: "all 0.2s",
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: isActive ? "#a5b4fc" : "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {item.title || "Untitled Conversation"}
+                      </div>
+                      <div style={{ fontSize: "0.72rem", color: "#64748b", marginTop: "0.2rem", display: "flex", justifyContent: "space-between" }}>
+                        <span>{item.message_count ? `${item.message_count} msgs` : "Session"}</span>
+                        <span>ID: {item.session_id.slice(-6)}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
       {/* Main Container */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: "64px", maxWidth: "1100px", width: "100%", margin: "0 auto", paddingLeft: "1rem", paddingRight: "1rem" }}>
 
@@ -545,18 +702,35 @@ export default function HermesChatPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleNewConversation}
-            disabled={isStreaming || isUploading}
-            style={{
-              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "0.65rem", padding: "0.45rem 0.9rem", color: "#f1f5f9",
-              fontSize: "0.82rem", fontWeight: 600, cursor: isStreaming ? "not-allowed" : "pointer",
-              display: "flex", alignItems: "center", gap: "0.4rem", transition: "all 0.2s"
-            }}
-          >
-            ➕ New Chat
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <button
+              onClick={() => {
+                fetchSessionList();
+                setIsHistoryOpen(true);
+              }}
+              style={{
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "0.65rem", padding: "0.45rem 0.9rem", color: "#f1f5f9",
+                fontSize: "0.82rem", fontWeight: 600, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: "0.4rem", transition: "all 0.2s"
+              }}
+            >
+              📜 History
+            </button>
+
+            <button
+              onClick={handleNewConversation}
+              disabled={isStreaming || isUploading}
+              style={{
+                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                borderRadius: "0.65rem", padding: "0.45rem 0.9rem", color: "#f1f5f9",
+                fontSize: "0.82rem", fontWeight: 600, cursor: isStreaming ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", gap: "0.4rem", transition: "all 0.2s"
+              }}
+            >
+              ➕ New Chat
+            </button>
+          </div>
         </div>
 
         {/* Global Status Alert Banner */}
@@ -590,6 +764,11 @@ export default function HermesChatPage() {
           ) : (
             messages.map((msg, index) => {
               const isUser = msg.role === "user";
+              const cleanContent = sanitizeText(msg.content);
+
+              if (!cleanContent && !msg.attachments?.length && !msg.toolCall && !msg.isStreaming) {
+                return null; // Skip empty system/tool frames
+              }
 
               return (
                 <div
@@ -639,8 +818,8 @@ export default function HermesChatPage() {
                     )}
 
                     {/* Message Body */}
-                    {msg.content ? (
-                      <FormattedMessage text={msg.content} />
+                    {cleanContent ? (
+                      <FormattedMessage text={cleanContent} />
                     ) : (
                       msg.isStreaming && (
                         <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.85rem" }}>
