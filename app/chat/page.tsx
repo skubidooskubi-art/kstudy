@@ -191,7 +191,7 @@ export default function HermesChatPage() {
 
       if (savedSid) {
         console.log("[KStudy Chat] Loading existing session:", savedSid);
-        const res = await fetch(`/hermes-chat/api/session?session_id=${encodeURIComponent(savedSid)}`);
+        const res = await fetch(`/api/hermes/session?session_id=${encodeURIComponent(savedSid)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.session) {
@@ -206,7 +206,7 @@ export default function HermesChatPage() {
       }
 
       console.log("[KStudy Chat] Creating new session...");
-      const newRes = await fetch("/hermes-chat/api/session/new", {
+      const newRes = await fetch("/api/hermes/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -247,7 +247,7 @@ export default function HermesChatPage() {
 
     try {
       setStatusMessage("Creating new conversation...");
-      const res = await fetch("/hermes-chat/api/session/new", {
+      const res = await fetch("/api/hermes/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -339,7 +339,7 @@ export default function HermesChatPage() {
           formData.append("session_id", sessionId);
           formData.append("file", file, file.name);
 
-          const uploadRes = await fetch("/hermes-chat/api/upload", {
+          const uploadRes = await fetch("/api/hermes/upload", {
             method: "POST",
             body: formData,
           });
@@ -386,7 +386,7 @@ export default function HermesChatPage() {
     try {
       setIsStreaming(true);
 
-      const startRes = await fetch("/hermes-chat/api/chat/start", {
+      const startRes = await fetch("/api/hermes/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

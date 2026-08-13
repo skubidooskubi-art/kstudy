@@ -4,23 +4,9 @@ const ngrokDomain = process.env.BETTER_AUTH_URL
   ? new URL(process.env.BETTER_AUTH_URL).hostname
   : "";
 
-const hermesTarget = process.env.HERMES_WEB_URL || "http://10.0.1.1:8787";
-
 const nextConfig: NextConfig = {
   allowedDevOrigins: ngrokDomain ? [ngrokDomain] : [],
   output: "standalone",
-  async rewrites() {
-    return [
-      {
-        source: "/hermes-chat",
-        destination: `${hermesTarget}/`,
-      },
-      {
-        source: "/hermes-chat/:path*",
-        destination: `${hermesTarget}/:path*`,
-      },
-    ];
-  },
 };
 
 export default nextConfig;
