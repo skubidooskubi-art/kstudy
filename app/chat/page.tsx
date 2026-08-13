@@ -105,7 +105,6 @@ function formatBytes(bytes?: number): string {
 function FormattedMessage({ text }: { text: string }) {
   if (!text) return null;
 
-  // Split into paragraphs / code blocks
   const blocks = text.split(/(```[\s\S]*?```)/g);
 
   return (
@@ -130,12 +129,10 @@ function FormattedMessage({ text }: { text: string }) {
           );
         }
 
-        // Standard text with bold / inline code formatting
         const lines = block.split("\n");
         return (
           <span key={idx}>
             {lines.map((line, lIdx) => {
-              // Parse simple inline bold **text** and `code`
               const parts = line.split(/(\*\*.*?\*\*|`[^`]+`)/g);
 
               return (
@@ -173,6 +170,7 @@ export default function HermesChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const hasInitializedRef = useRef(false);
 
   const user = session?.user;
 
@@ -185,20 +183,20 @@ export default function HermesChatPage() {
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Load or create a session for the user
+  // Load or create a session for the user ONCE
   const initSession = useCallback(async () => {
     try {
       setStatusMessage("Connecting to Hermes AI Assistant...");
       const savedSid = typeof window !== "undefined" ? localStorage.getItem("kstudy_chat_sid") : null;
 
       if (savedSid) {
-        // Try fetching existing session
+        console.log("[KStudy Chat] Loading existing session:", savedSid);
         const res = await fetch(`/hermes-chat/api/session?session_id=${encodeURIComponent(savedSid)}`);
         if (res.ok) {
           const data = await res.json();
           if (data.session) {
             setSessionId(data.session.session_id);
-            if (Array.isArray(data.session.messages)) {
+            if (Array.isArray(data.session.messages) && data.session.messages.length > 0) {
               setMessages(data.session.messages);
             }
             setStatusMessage(null);
@@ -207,7 +205,7 @@ export default function HermesChatPage() {
         }
       }
 
-      // Create new session if no saved session or load failed
+      console.log("[KStudy Chat] Creating new session...");
       const newRes = await fetch("/hermes-chat/api/session/new", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -217,6 +215,7 @@ export default function HermesChatPage() {
       if (newRes.ok) {
         const newData = await newRes.json();
         const newSid = newData.session.session_id;
+        console.log("[KStudy Chat] Created new session ID:", newSid);
         setSessionId(newSid);
         if (typeof window !== "undefined") {
           localStorage.setItem("kstudy_chat_sid", newSid);
@@ -225,13 +224,14 @@ export default function HermesChatPage() {
       }
       setStatusMessage(null);
     } catch (err) {
-      console.error("Session initialization error:", err);
+      console.error("[KStudy Chat] Session initialization error:", err);
       setStatusMessage("Failed to connect to Hermes AI Assistant. Please refresh.");
     }
   }, []);
 
   useEffect(() => {
-    if (session?.user) {
+    if (session?.user && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       initSession();
     }
   }, [session, initSession]);
@@ -263,7 +263,7 @@ export default function HermesChatPage() {
         setMessages([]);
       }
     } catch (err) {
-      console.error("New conversation error:", err);
+      console.error("[KStudy Chat] New conversation error:", err);
     } finally {
       setStatusMessage(null);
     }
@@ -291,6 +291,27 @@ export default function HermesChatPage() {
     setMessages((prev) =>
       prev.map((msg) => (msg.isStreaming ? { ...msg, isStreaming: false } : msg))
     );
+  };
+
+  // Helper to append token text to assistant message
+  const appendTokenToLastAssistant = (tokenText: string) => {
+    if (!tokenText) return;
+    setMessages((prev) => {
+      const updated = [...prev];
+      if (updated.length === 0) {
+        return [{ role: "assistant", content: tokenText, isStreaming: true }];
+      }
+      const last = updated[updated.length - 1];
+      if (last && last.role === "assistant") {
+        updated[updated.length - 1] = {
+          ...last,
+          content: last.content + tokenText,
+        };
+      } else {
+        updated.push({ role: "assistant", content: tokenText, isStreaming: true });
+      }
+      return updated;
+    });
   };
 
   // Send Message
@@ -334,7 +355,7 @@ export default function HermesChatPage() {
             });
           }
         } catch (uploadErr) {
-          console.error("File upload error:", uploadErr);
+          console.error("[KStudy Chat] File upload error:", uploadErr);
         }
       }
 
@@ -350,7 +371,16 @@ export default function HermesChatPage() {
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [
+      ...prev,
+      userMessage,
+      {
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+        timestamp: Date.now(),
+      },
+    ]);
 
     // Step 3: Trigger chat completion request
     try {
@@ -377,63 +407,33 @@ export default function HermesChatPage() {
         throw new Error("No stream_id returned from Hermes.");
       }
 
-      // Append initial Assistant Message placeholder
-      const assistantMessageIndex = messages.length + 1;
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: "",
-          isStreaming: true,
-          timestamp: Date.now(),
-        },
-      ]);
+      console.log("[KStudy Chat] Connected stream ID:", streamId);
 
       // Step 4: Connect SSE EventSource via Next.js unbuffered stream proxy
       const es = new EventSource(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`);
       eventSourceRef.current = es;
 
-      es.onmessage = (event) => {
+      const processDataChunk = (rawData: string) => {
         try {
-          const data = JSON.parse(event.data);
+          const data = JSON.parse(rawData);
           if (data.text) {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const last = updated[updated.length - 1];
-              if (last && last.role === "assistant") {
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: last.content + data.text,
-                };
-              }
-              return updated;
-            });
+            appendTokenToLastAssistant(data.text);
           }
         } catch (e) {
-          console.error("SSE parse error:", e);
+          console.warn("[KStudy Chat] SSE parse error:", e);
         }
       };
 
-      // Handle custom SSE event names
+      es.onmessage = (event) => {
+        processDataChunk(event.data);
+      };
+
       es.addEventListener("token", (event: MessageEvent) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.text) {
-            setMessages((prev) => {
-              const updated = [...prev];
-              const last = updated[updated.length - 1];
-              if (last && last.role === "assistant") {
-                updated[updated.length - 1] = {
-                  ...last,
-                  content: last.content + data.text,
-                };
-              }
-              return updated;
-            });
-          }
-        } catch (e) {
-          console.error("Token parse error:", e);
-        }
+        processDataChunk(event.data);
+      });
+
+      es.addEventListener("interim_assistant", (event: MessageEvent) => {
+        processDataChunk(event.data);
       });
 
       es.addEventListener("tool", (event: MessageEvent) => {
@@ -472,27 +472,27 @@ export default function HermesChatPage() {
         });
       });
 
-      es.addEventListener("done", () => {
-        es.close();
-        eventSourceRef.current = null;
-        setIsStreaming(false);
-        setMessages((prev) =>
-          prev.map((msg) => (msg.isStreaming ? { ...msg, isStreaming: false } : msg))
-        );
-      });
-
-      es.onerror = (err) => {
-        console.error("EventSource SSE error:", err);
-        es.close();
-        eventSourceRef.current = null;
+      const finishStream = () => {
+        if (eventSourceRef.current) {
+          eventSourceRef.current.close();
+          eventSourceRef.current = null;
+        }
         setIsStreaming(false);
         setMessages((prev) =>
           prev.map((msg) => (msg.isStreaming ? { ...msg, isStreaming: false } : msg))
         );
       };
 
+      es.addEventListener("done", finishStream);
+      es.addEventListener("stream_end", finishStream);
+
+      es.onerror = (err) => {
+        console.error("[KStudy Chat] EventSource SSE error:", err);
+        finishStream();
+      };
+
     } catch (err: any) {
-      console.error("Send message error:", err);
+      console.error("[KStudy Chat] Send message error:", err);
       setIsStreaming(false);
       setMessages((prev) => [
         ...prev,
