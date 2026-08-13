@@ -389,8 +389,8 @@ export default function HermesChatPage() {
         },
       ]);
 
-      // Step 4: Connect SSE EventSource
-      const es = new EventSource(`/hermes-chat/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`);
+      // Step 4: Connect SSE EventSource via Next.js unbuffered stream proxy
+      const es = new EventSource(`/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`);
       eventSourceRef.current = es;
 
       es.onmessage = (event) => {
