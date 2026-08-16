@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
             accessCode:         accessCode,
             // ── fresh cycle: reset usage to 0 ──
             used_this_month_usd: 0.0,
+            monthly_budget_usd:  user?.monthly_budget_usd ?? 1.50,
             last_used:           "",
             last_reset_at:       new Date(),
           },
