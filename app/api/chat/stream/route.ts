@@ -1,6 +1,6 @@
 import { getAuth } from "@/lib/auth";
 import clientPromise from "@/lib/db";
-import { ownsResource, type HermesResourceRecord } from "@/lib/hermes-access";
+import { getProfileCookie, ownsResource, type HermesResourceRecord } from "@/lib/hermes-access";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -26,9 +26,16 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Hermes resource not found." }, { status: 404 });
     }
 
+    const cookie = await getProfileCookie(req);
     const upstreamRes = await fetch(
       `${HERMES_TARGET}/api/chat/stream?stream_id=${encodeURIComponent(streamId)}`,
-      { headers: { Accept: "text/event-stream" }, cache: "no-store" },
+      {
+        headers: {
+          Accept: "text/event-stream",
+          Cookie: cookie,
+        },
+        cache: "no-store",
+      },
     );
 
     if (!upstreamRes.ok || !upstreamRes.body) {

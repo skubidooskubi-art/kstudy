@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/auth";
 import clientPromise from "@/lib/db";
 import {
+  getProfileCookie,
   ownsResource,
   registerResource,
   type HermesResourceRecord,
@@ -30,9 +31,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Hermes resource not found." }, { status: 404 });
     }
 
+    const cookie = await getProfileCookie(req);
     const upstreamRes = await fetch(`${HERMES_TARGET}/api/chat/start`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
       body: JSON.stringify(body),
       cache: "no-store",
     });

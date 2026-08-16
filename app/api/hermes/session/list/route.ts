@@ -1,6 +1,6 @@
 import { getAuth } from "@/lib/auth";
 import clientPromise from "@/lib/db";
-import { getOwnedSessionIds, type HermesResourceRecord } from "@/lib/hermes-access";
+import { getOwnedSessionIds, getProfileCookie, type HermesResourceRecord } from "@/lib/hermes-access";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +15,12 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const cookie = await getProfileCookie(req);
     const upstreamRes = await fetch(`${HERMES_TARGET}/api/sessions`, {
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        Cookie: cookie,
+      },
       cache: "no-store",
     });
 

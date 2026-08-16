@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/auth";
 import clientPromise from "@/lib/db";
 import {
+  getProfileCookie,
   ownsResource,
   registerResource,
   type HermesResourceCollection,
@@ -50,9 +51,16 @@ export async function GET(req: NextRequest) {
       return notFound();
     }
 
+    const cookie = await getProfileCookie(req);
     const upstreamRes = await fetch(
       `${HERMES_TARGET}/api/session?session_id=${encodeURIComponent(sessionId)}`,
-      { headers: { Accept: "application/json" }, cache: "no-store" },
+      {
+        headers: {
+          Accept: "application/json",
+          Cookie: cookie,
+        },
+        cache: "no-store",
+      },
     );
 
     if (!upstreamRes.ok) {
@@ -75,9 +83,13 @@ export async function POST(req: NextRequest) {
     if (!owner) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
+    const cookie = await getProfileCookie(req);
     const upstreamRes = await fetch(`${HERMES_TARGET}/api/session/new`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookie,
+      },
       body: JSON.stringify(body),
       cache: "no-store",
     });

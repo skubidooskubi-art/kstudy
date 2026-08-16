@@ -1,6 +1,6 @@
 import { getAuth } from "@/lib/auth";
 import clientPromise from "@/lib/db";
-import { ownsResource, type HermesResourceRecord } from "@/lib/hermes-access";
+import { getProfileCookie, ownsResource, type HermesResourceRecord } from "@/lib/hermes-access";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -27,8 +27,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Hermes resource not found." }, { status: 404 });
     }
 
+    const cookie = await getProfileCookie(req);
     const upstreamRes = await fetch(`${HERMES_TARGET}/api/upload`, {
       method: "POST",
+      headers: {
+        Cookie: cookie,
+      },
       body: formData,
       cache: "no-store",
     });

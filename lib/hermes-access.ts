@@ -1,3 +1,7 @@
+import { getAuth } from "@/lib/auth";
+import clientPromise from "@/lib/db";
+import type { NextRequest } from "next/server";
+
 export type HermesResourceKind = "session" | "stream";
 
 export type HermesResourceRecord = {
@@ -92,4 +96,17 @@ export async function getOwnedSessionIds(
 ): Promise<Set<string>> {
   const records = await resources.find({ ownerId, kind: "session" }).toArray();
   return new Set(records.map((record) => record.resourceId));
+}
+
+export async function getProfileCookie(req: NextRequest): Promise<string> {
+  const auth = await getAuth();
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session?.user?.email) {
+    return "hermes_profile=kstudy_free";
+  }
+
+  const client = await clientPromise;
+  const user = await client.db("kstudy").collection("user").findOne({ email: session.user.email });
+  const profileName = user?.profile_name || "kstudy_free";
+  return `hermes_profile=${profileName}`;
 }
