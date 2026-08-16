@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "concurrently --names \"next,cron\" --prefix-colors \"cyan,yellow\" \"next start\" \"tsx cron/runner.ts\"",
     "cron:start": "tsx cron/runner.ts",
+    "test": "node --import tsx --test test/*.test.ts",
     "lint": "eslint"
   },
   "dependencies": {
