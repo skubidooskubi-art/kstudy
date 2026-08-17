@@ -367,3 +367,93 @@ nav {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Chat page 3-pane layout (sidebar | chat | files panel)
+   Structural only — colors/bubbles keep the existing dark theme.
+   ───────────────────────────────────────────────────────────── */
+
+/* Shell sits below the fixed 64px topbar and fills the viewport. */
+.chat-shell {
+  display: flex;
+  height: 100vh;
+  padding-top: 64px;
+  overflow: hidden;
+}
+
+/* Left sidebar — expanded vs collapsed rail. Width animates. */
+.chat-sidebar {
+  flex-shrink: 0;
+  width: 280px;
+  background: rgba(11, 16, 30, 0.96);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+.chat-sidebar.collapsed {
+  width: 60px;
+}
+
+/* Main chat column flexes to fill remaining space. */
+.chat-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Right files panel — docked on desktop, animates width. */
+.chat-files-panel {
+  flex-shrink: 0;
+  width: 380px;
+  max-width: 40vw;
+  background: rgba(11, 16, 30, 0.98);
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+/* Backdrop for overlay modes (mobile sidebar, mobile files panel). */
+.chat-overlay-backdrop {
+  position: fixed;
+  inset: 64px 0 0 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+/* ── Responsive: tablet/mobile ── */
+@media (max-width: 900px) {
+  .chat-files-panel {
+    position: fixed;
+    top: 64px;
+    bottom: 0;
+    right: 0;
+    width: 400px;
+    max-width: 88vw;
+    z-index: 70;
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.6);
+  }
+}
+
+@media (max-width: 768px) {
+  /* Sidebar overlays instead of pushing content. */
+  .chat-sidebar {
+    position: fixed;
+    top: 64px;
+    bottom: 0;
+    left: 0;
+    z-index: 70;
+    box-shadow: 12px 0 40px rgba(0, 0, 0, 0.6);
+  }
+  /* On mobile the collapsed sidebar hides entirely (toggle via hamburger). */
+  .chat-sidebar.collapsed {
+    width: 0;
+    border-right: none;
+  }
+}
+
