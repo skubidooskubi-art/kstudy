@@ -168,6 +168,63 @@ function FormattedMessage({ text }: { text: string }) {
         return (
           <span key={idx}>
             {lines.map((line, lIdx) => {
+              // ── Check if line contains a MEDIA:/ absolute path attachment ──
+              if (line.includes("MEDIA:/")) {
+                const match = line.match(/MEDIA:(\/[^\s]+)/);
+                if (match) {
+                  const absolutePath = match[1];
+                  const fileName = absolutePath.split("/").pop() || "Document.pdf";
+                  
+                  return (
+                    <div
+                      key={lIdx}
+                      style={{
+                        margin: "1rem 0",
+                        padding: "0.85rem 1.1rem",
+                        background: "rgba(255, 255, 255, 0.05)",
+                        border: "1px solid rgba(255, 255, 255, 0.12)",
+                        borderRadius: "0.65rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "1rem",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
+                        <span style={{ fontSize: "1.5rem" }}>📄</span>
+                        <div style={{ textAlign: "left" }}>
+                          <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.85rem" }}>
+                            {fileName}
+                          </div>
+                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>
+                            Generated Assistant Document
+                          </div>
+                        </div>
+                      </div>
+                      <a
+                        href={`/api/hermes/download?path=${encodeURIComponent(absolutePath)}`}
+                        download={fileName}
+                        style={{
+                          background: "var(--cyan)",
+                          color: "#0f172a",
+                          fontWeight: 700,
+                          fontSize: "0.8rem",
+                          padding: "0.35rem 0.85rem",
+                          borderRadius: "0.45rem",
+                          textDecoration: "none",
+                          display: "inline-block",
+                          transition: "opacity 0.2s",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1.0")}
+                      >
+                        Download PDF
+                      </a>
+                    </div>
+                  );
+                }
+              }
+
               const parts = line.split(/(\*\*.*?\*\*|`[^`]+`)/g);
 
               return (
