@@ -8,8 +8,11 @@ import {
   extractArtifacts,
   downloadUrl,
   iconForKind,
+  kindForExt,
   type ChatArtifact,
 } from "@/lib/chat-artifacts";
+import { extractSources, type WebSource, type ToolEventLike } from "@/lib/chat-sources";
+import { progressForTool } from "@/lib/tool-progress";
 
 /* ─── Types ───────────────────────────────────────────────────── */
 interface Attachment {
@@ -20,6 +23,15 @@ interface Attachment {
   is_image?: boolean;
 }
 
+/** A tool invocation captured during a turn (for progress + sources). */
+interface ToolEvent {
+  name: string;
+  args?: Record<string, unknown> | null;
+  preview?: string | null;
+  done?: boolean;
+  is_error?: boolean;
+}
+
 interface ChatMessage {
   id?: string | number;
   role: "user" | "assistant" | "system";
@@ -27,10 +39,19 @@ interface ChatMessage {
   attachments?: Attachment[];
   timestamp?: number;
   isStreaming?: boolean;
+  /** Legacy single tool indicator (kept for backward compatibility). */
   toolCall?: {
     name: string;
     status: "running" | "completed" | "error";
   };
+  /** Accumulated reasoning/thinking text for this assistant turn. */
+  reasoning?: string;
+  /** Whether reasoning is still actively streaming (vs finished). */
+  reasoningActive?: boolean;
+  /** All tool events observed during this turn (for progress + sources). */
+  toolEvents?: ToolEvent[];
+  /** Live progress label while the turn is doing background work. */
+  progressLabel?: string;
 }
 
 interface SessionItem {
@@ -132,7 +153,7 @@ function formatBytes(bytes?: number): string {
 }
 
 /* ─── Simple Markdown Renderer (UNCHANGED bubble styling) ──────── */
-function FormattedMessage({ text }: { text: string }) {
+function FormattedMessage({ text, onOpenFile }: { text: string; onOpenFile?: (path: string, name: string) => void }) {
   const clean = sanitizeText(text);
   if (!clean) return null;
 
@@ -148,11 +169,12 @@ function FormattedMessage({ text }: { text: string }) {
 
           return (
             <div key={idx} style={{ margin: "0.75rem 0", borderRadius: "0.6rem", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.4)" }}>
-              {language && (
-                <div style={{ background: "rgba(255,255,255,0.05)", padding: "0.35rem 0.85rem", fontSize: "0.75rem", color: "var(--text-muted)", borderBottom: "1px solid rgba(255,255,255,0.08)", fontWeight: 600 }}>
-                  {language.toUpperCase()}
-                </div>
-              )}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.05)", padding: "0.3rem 0.5rem 0.3rem 0.85rem", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.03em" }}>
+                  {language ? language.toUpperCase() : "CODE"}
+                </span>
+                <CopyButton text={code} label="Copy" subtle />
+              </div>
               <pre style={{ margin: 0, padding: "0.85rem", overflowX: "auto", fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: "0.85rem", color: "#e2e8f0" }}>
                 <code>{code}</code>
               </pre>
@@ -174,6 +196,10 @@ function FormattedMessage({ text }: { text: string }) {
                   return (
                     <div
                       key={lIdx}
+                      role={onOpenFile ? "button" : undefined}
+                      tabIndex={onOpenFile ? 0 : undefined}
+                      onClick={onOpenFile ? () => onOpenFile(absolutePath, fileName) : undefined}
+                      onKeyDown={onOpenFile ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenFile(absolutePath, fileName); } } : undefined}
                       style={{
                         margin: "1rem 0",
                         padding: "0.85rem 1.1rem",
@@ -184,22 +210,27 @@ function FormattedMessage({ text }: { text: string }) {
                         alignItems: "center",
                         justifyContent: "space-between",
                         gap: "1rem",
+                        cursor: onOpenFile ? "pointer" : "default",
+                        transition: "border-color 0.2s, background 0.2s",
                       }}
+                      onMouseEnter={onOpenFile ? (e) => { e.currentTarget.style.borderColor = "rgba(0,212,255,0.5)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; } : undefined}
+                      onMouseLeave={onOpenFile ? (e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } : undefined}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.65rem" }}>
-                        <span style={{ fontSize: "1.5rem" }}>📄</span>
-                        <div style={{ textAlign: "left" }}>
-                          <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.85rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", minWidth: 0 }}>
+                        <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>📄</span>
+                        <div style={{ textAlign: "left", minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                             {fileName}
                           </div>
                           <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>
-                            Generated Assistant Document
+                            {onOpenFile ? "Click to preview · Generated document" : "Generated Assistant Document"}
                           </div>
                         </div>
                       </div>
                       <a
                         href={`/api/hermes/download?path=${encodeURIComponent(absolutePath)}`}
                         download={fileName}
+                        onClick={(e) => e.stopPropagation()}
                         style={{
                           background: "var(--cyan)",
                           color: "#0f172a",
@@ -208,13 +239,16 @@ function FormattedMessage({ text }: { text: string }) {
                           padding: "0.35rem 0.85rem",
                           borderRadius: "0.45rem",
                           textDecoration: "none",
-                          display: "inline-block",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "0.35rem",
+                          flexShrink: 0,
                           transition: "opacity 0.2s",
                         }}
                         onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
                         onMouseLeave={(e) => (e.currentTarget.style.opacity = "1.0")}
                       >
-                        Download PDF
+                        <Icon name="download" size={14} /> Download
                       </a>
                     </div>
                   );
@@ -256,8 +290,180 @@ function Icon({ name, size = 18 }: { name: string; size?: number }) {
     case "download": return <svg {...common}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></svg>;
     case "back": return <svg {...common}><polyline points="15 18 9 12 15 6" /></svg>;
     case "check": return <svg {...common}><polyline points="20 6 9 17 4 12" /></svg>;
+    case "chevron": return <svg {...common}><polyline points="6 9 12 15 18 9" /></svg>;
+    case "copy": return <svg {...common}><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>;
+    case "globe": return <svg {...common}><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>;
+    case "external": return <svg {...common}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>;
+    case "spark": return <svg {...common}><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" /></svg>;
     default: return null;
   }
+}
+
+/* ─── Copy hook + button (per-block and per-message) ──────────── */
+function useCopy(): [boolean, (text: string) => void] {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const copy = useCallback((text: string) => {
+    const done = () => {
+      setCopied(true);
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1600);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(() => {
+        // Fallback for non-secure contexts / older browsers.
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          document.execCommand("copy"); document.body.removeChild(ta);
+          done();
+        } catch { /* give up silently */ }
+      });
+    } else {
+      try {
+        const ta = document.createElement("textarea");
+        ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        document.execCommand("copy"); document.body.removeChild(ta);
+        done();
+      } catch { /* give up silently */ }
+    }
+  }, []);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  return [copied, copy];
+}
+
+function CopyButton({ text, label, subtle }: { text: string; label?: string; subtle?: boolean }) {
+  const [copied, copy] = useCopy();
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); copy(text); }}
+      title={copied ? "Copied!" : "Copy"}
+      aria-label={copied ? "Copied" : "Copy"}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: "0.3rem",
+        background: subtle ? "transparent" : "rgba(255,255,255,0.08)",
+        border: subtle ? "none" : "1px solid rgba(255,255,255,0.14)",
+        borderRadius: "0.4rem", padding: subtle ? "0.2rem" : "0.25rem 0.5rem",
+        color: copied ? "#34d399" : "#94a3b8", fontSize: "0.72rem", fontWeight: 600,
+        cursor: "pointer", fontFamily: "inherit", transition: "color 0.15s, background 0.15s",
+        lineHeight: 1,
+      }}
+    >
+      <Icon name={copied ? "check" : "copy"} size={14} />
+      {label && <span>{copied ? "Copied" : label}</span>}
+    </button>
+  );
+}
+
+/* ─── Reasoning / "thinking" collapsible block (per message) ──── */
+function ReasoningBlock({ text, active, thoughtSeconds }: {
+  text: string;
+  active: boolean;
+  thoughtSeconds?: number;
+}) {
+  // Expanded live while thinking; auto-collapses once the answer starts.
+  const [open, setOpen] = useState(active);
+  const wasActive = useRef(active);
+  useEffect(() => {
+    // Auto-collapse on the active -> done transition (not on manual toggles).
+    // Syncing local disclosure state to the streaming `active` prop is exactly
+    // the external-sync case an effect is for.
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (wasActive.current && !active) setOpen(false);
+    if (active) setOpen(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    wasActive.current = active;
+  }, [active]);
+
+  if (!text?.trim()) return null;
+
+  const summary = active
+    ? "Thinking…"
+    : thoughtSeconds && thoughtSeconds > 0
+      ? `Thought for ${thoughtSeconds}s`
+      : "Show thinking";
+
+  return (
+    <div style={{ margin: "0 0 0.6rem 0", border: "1px dashed rgba(148,163,184,0.3)", borderRadius: "0.6rem", background: "rgba(148,163,184,0.06)", overflow: "hidden" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex", alignItems: "center", gap: "0.45rem", width: "100%",
+          background: "none", border: "none", cursor: "pointer", padding: "0.45rem 0.7rem",
+          color: "#94a3b8", fontSize: "0.78rem", fontWeight: 600, fontFamily: "inherit", textAlign: "left",
+        }}
+      >
+        {active
+          ? <span style={{ width: 12, height: 12, border: "2px solid #94a3b8", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
+          : <span style={{ display: "flex", flexShrink: 0, transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.15s" }}><Icon name="chevron" size={14} /></span>}
+        <span style={{ display: "flex", alignItems: "center", gap: "0.35rem" }}>
+          <Icon name="spark" size={13} /> {summary}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: "0.1rem 0.8rem 0.7rem 0.8rem", borderTop: "1px solid rgba(148,163,184,0.15)" }}>
+          <div style={{ fontSize: "0.8rem", lineHeight: 1.55, color: "#94a3b8", whiteSpace: "pre-wrap", wordBreak: "break-word", fontStyle: "italic" }}>
+            {text}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Web sources pill + expandable list (per message) ────────── */
+function SourcesPanel({ sources }: { sources: WebSource[] }) {
+  const [open, setOpen] = useState(false);
+  if (!sources || sources.length === 0) return null;
+
+  const n = sources.length;
+  return (
+    <div style={{ margin: "0 0 0.6rem 0" }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: "0.4rem",
+          background: "rgba(59,130,246,0.12)", border: "1px solid rgba(59,130,246,0.28)",
+          borderRadius: "20px", padding: "0.25rem 0.7rem", color: "#93c5fd",
+          fontSize: "0.75rem", fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        <Icon name="globe" size={13} />
+        <span>{`${n} source${n === 1 ? "" : "s"}`}</span>
+        <span style={{ display: "flex", transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.15s" }}><Icon name="chevron" size={13} /></span>
+      </button>
+      {open && (
+        <div style={{ marginTop: "0.5rem", display: "flex", flexDirection: "column", gap: "0.35rem", borderLeft: "2px solid rgba(59,130,246,0.3)", paddingLeft: "0.7rem" }}>
+          {sources.map((s, i) => (
+            <a
+              key={s.url + i}
+              href={s.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title={s.url}
+              style={{ display: "flex", alignItems: "center", gap: "0.45rem", textDecoration: "none", color: "#cbd5e1", fontSize: "0.78rem", padding: "0.15rem 0" }}
+            >
+              <span style={{ display: "flex", flexShrink: 0, color: "#64748b" }}><Icon name="external" size={13} /></span>
+              <span style={{ fontWeight: 600, color: "#93c5fd", flexShrink: 0 }}>{s.domain}</span>
+              <span style={{ color: "#64748b", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label.replace(s.domain, "").replace(/^\s*—\s*/, "") || ""}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── In-thread progress indicator for background work ────────── */
+function MessageProgress({ label }: { label: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "#94a3b8", fontSize: "0.85rem" }}>
+      <span style={{ width: 12, height: 12, border: "2px solid #38bdf8", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite", flexShrink: 0 }} />
+      <span>{label}</span>
+    </div>
+  );
 }
 
 /* ─── Chat Sidebar ────────────────────────────────────────────── */
@@ -418,11 +624,19 @@ function ChatTitle({ title, onRename, saving }: {
 }
 
 /* ─── Files / Artifacts Panel ─────────────────────────────────── */
-function FilesPanel({ artifacts, onClose }: {
+function FilesPanel({ artifacts, onClose, initialPreview }: {
   artifacts: ChatArtifact[];
   onClose: () => void;
+  initialPreview?: ChatArtifact | null;
 }) {
-  const [preview, setPreview] = useState<ChatArtifact | null>(null);
+  const [preview, setPreview] = useState<ChatArtifact | null>(initialPreview ?? null);
+
+  // When opened targeting a specific file (from an inline card), jump to it.
+  useEffect(() => {
+    // Sync the preview target to the controlling prop from the parent.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (initialPreview) setPreview(initialPreview);
+  }, [initialPreview]);
 
   return (
     <div className="chat-files-panel">
@@ -552,6 +766,9 @@ export default function HermesChatPage() {
   const [chatTitle, setChatTitle] = useState<string>("");
   const [titleSaving, setTitleSaving] = useState(false);
 
+  // File preview target (set when an inline file card is clicked; opens the panel to that file).
+  const [filePreview, setFilePreview] = useState<ChatArtifact | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -562,6 +779,19 @@ export default function HermesChatPage() {
 
   // Derived artifacts for the Files panel
   const artifacts = extractArtifacts(messages);
+
+  // Open the Files panel previewing a specific file (from an inline card click).
+  const openFileByPath = useCallback((path: string, name: string) => {
+    const found = artifacts.find((a) => a.path === path);
+    if (found) {
+      setFilePreview(found);
+      return;
+    }
+    // Synthesize an artifact when the file isn't in the derived list yet.
+    const ext = (name.split(".").pop() || "").toLowerCase();
+    const kind = kindForExt(ext);
+    setFilePreview({ path, name, ext, kind, source: "assistant" });
+  }, [artifacts]);
 
   /* ── Persisted sidebar toggle ── */
   useEffect(() => {
@@ -837,6 +1067,10 @@ export default function HermesChatPage() {
         updated[updated.length - 1] = {
           ...last,
           content: last.content + cleanToken,
+          // Real answer tokens are arriving: the thinking phase is over and any
+          // "in progress" status should give way to the streaming response.
+          reasoningActive: false,
+          progressLabel: undefined,
         };
       } else {
         updated.push({ role: "assistant", content: cleanToken, isStreaming: true });
@@ -1007,19 +1241,55 @@ export default function HermesChatPage() {
         processDataChunk(event.data);
       });
 
-      es.addEventListener("tool", (event: MessageEvent) => {
+      // Reasoning / "thinking" deltas — accumulate per current assistant message.
+      es.addEventListener("reasoning", (event: MessageEvent) => {
         try {
           const data = JSON.parse(event.data);
+          const delta = typeof data?.text === "string" ? data.text : "";
+          if (!delta) return;
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];
             if (last && last.role === "assistant") {
               updated[updated.length - 1] = {
                 ...last,
-                toolCall: {
-                  name: data.name || "Executing tool...",
-                  status: "running",
-                },
+                reasoning: (last.reasoning || "") + delta,
+                reasoningActive: true,
+                // Keep a live progress hint if no tool has set one yet.
+                progressLabel: last.progressLabel || "Thinking…",
+              };
+            }
+            return updated;
+          });
+        } catch (e) {
+          console.error("Reasoning parse error:", e);
+        }
+      });
+
+      es.addEventListener("tool", (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          const toolName = data.name || "tool";
+          const prog = progressForTool(toolName);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && last.role === "assistant") {
+              const toolEvents = [...(last.toolEvents || [])];
+              toolEvents.push({
+                name: toolName,
+                args: data.args || null,
+                preview: null,
+                done: false,
+              });
+              updated[updated.length - 1] = {
+                ...last,
+                // Once real output/tools begin, reasoning is no longer "active".
+                reasoningActive: false,
+                toolEvents,
+                progressLabel: prog.label,
+                // Legacy single indicator kept for continuity.
+                toolCall: { name: toolName, status: "running" },
               };
             }
             return updated;
@@ -1029,18 +1299,34 @@ export default function HermesChatPage() {
         }
       });
 
-      es.addEventListener("tool_complete", () => {
-        setMessages((prev) => {
-          const updated = [...prev];
-          const last = updated[updated.length - 1];
-          if (last && last.role === "assistant" && last.toolCall) {
-            updated[updated.length - 1] = {
-              ...last,
-              toolCall: { ...last.toolCall, status: "completed" },
-            };
-          }
-          return updated;
-        });
+      es.addEventListener("tool_complete", (event: MessageEvent) => {
+        try {
+          const data = event.data ? JSON.parse(event.data) : {};
+          const toolName = data.name;
+          const preview = typeof data.preview === "string" ? data.preview : null;
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last && last.role === "assistant") {
+              // Attach the completion preview to the most recent matching, not-done tool.
+              const toolEvents = [...(last.toolEvents || [])];
+              for (let i = toolEvents.length - 1; i >= 0; i--) {
+                if (!toolEvents[i].done && (!toolName || toolEvents[i].name === toolName)) {
+                  toolEvents[i] = { ...toolEvents[i], done: true, preview, is_error: !!data.is_error };
+                  break;
+                }
+              }
+              updated[updated.length - 1] = {
+                ...last,
+                toolEvents,
+                toolCall: last.toolCall ? { ...last.toolCall, status: "completed" } : undefined,
+              };
+            }
+            return updated;
+          });
+        } catch (e) {
+          console.error("Tool complete parse error:", e);
+        }
       });
 
       const finishStream = () => {
@@ -1050,7 +1336,11 @@ export default function HermesChatPage() {
         }
         setIsStreaming(false);
         setMessages((prev) =>
-          prev.map((msg) => (msg.isStreaming ? { ...msg, isStreaming: false } : msg))
+          prev.map((msg) =>
+            msg.isStreaming
+              ? { ...msg, isStreaming: false, reasoningActive: false, progressLabel: undefined }
+              : msg
+          )
         );
         // Refresh sidebar (message counts / server-side title) after a turn.
         fetchSessionList();
@@ -1121,8 +1411,24 @@ export default function HermesChatPage() {
             padding: "0.75rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.08)",
             background: "rgba(15, 23, 42, 0.55)", backdropFilter: "blur(12px)",
           }}>
-            {/* Left: hamburger (mobile) + editable title */}
+            {/* Left: sidebar toggle (mobile) + editable title */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", minWidth: 0, flex: 1 }}>
+              <button
+                className="chat-sidebar-toggle-mobile"
+                onClick={() => setMobileSidebarOpen((v) => !v)}
+                title="Chat history"
+                aria-label="Toggle chat history sidebar"
+                style={{
+                  display: "none", alignItems: "center", justifyContent: "center",
+                  width: 36, height: 36, flexShrink: 0,
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
+                  borderRadius: "0.6rem", color: "#e2e8f0", cursor: "pointer",
+                }}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
               <div style={{ width: 34, height: 34, borderRadius: "9px", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "1rem", flexShrink: 0 }}>
                 🤖
               </div>
@@ -1192,14 +1498,24 @@ export default function HermesChatPage() {
                 messages.map((msg, index) => {
                   const isUser = msg.role === "user";
                   const cleanContent = sanitizeText(msg.content);
+                  const hasReasoning = !!(msg.reasoning && msg.reasoning.trim());
+                  const msgSources = msg.toolEvents && msg.toolEvents.length
+                    ? extractSources(msg.toolEvents as ToolEventLike[])
+                    : [];
+                  const showProgress = !!msg.isStreaming && !cleanContent && !!msg.progressLabel;
+                  const showThinkingSpinner = !!msg.isStreaming && !cleanContent && !msg.progressLabel && !hasReasoning;
 
-                  if (!cleanContent && !msg.attachments?.length && !msg.toolCall && !msg.isStreaming) {
+                  if (
+                    !cleanContent && !msg.attachments?.length && !msg.isStreaming &&
+                    !hasReasoning && !(msg.toolEvents && msg.toolEvents.length)
+                  ) {
                     return null; // Skip empty system/tool frames
                   }
 
                   return (
                     <div
                       key={index}
+                      className="chat-msg-row"
                       style={{
                         display: "flex", flexDirection: "column",
                         alignItems: isUser ? "flex-end" : "flex-start",
@@ -1218,6 +1534,7 @@ export default function HermesChatPage() {
                           border: isUser ? "none" : "1px solid rgba(255,255,255,0.1)",
                           borderRadius: isUser ? "1.2rem 1.2rem 0.2rem 1.2rem" : "1.2rem 1.2rem 1.2rem 0.2rem",
                           padding: "0.85rem 1.15rem", color: "#f8fafc", boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+                          maxWidth: "100%", minWidth: 0,
                         }}
                       >
                         {/* Attachments Badge */}
@@ -1233,29 +1550,38 @@ export default function HermesChatPage() {
                           </div>
                         )}
 
-                        {/* Tool execution indicator */}
-                        {msg.toolCall && (
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "rgba(245, 158, 11, 0.15)", border: "1px solid rgba(245, 158, 11, 0.3)", borderRadius: "0.5rem", padding: "0.3rem 0.6rem", marginBottom: "0.5rem", fontSize: "0.78rem", color: "#fbbf24" }}>
-                            <span>🛠️</span>
-                            <span>{msg.toolCall.name}</span>
-                            {msg.toolCall.status === "running" && (
-                              <span style={{ width: 10, height: 10, border: "2px solid #fbbf24", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
-                            )}
-                          </div>
+                        {/* Reasoning ("thinking") — collapsible, above the answer */}
+                        {!isUser && hasReasoning && (
+                          <ReasoningBlock text={msg.reasoning as string} active={!!msg.reasoningActive} />
+                        )}
+
+                        {/* Web sources consulted (separate from reasoning) */}
+                        {!isUser && msgSources.length > 0 && (
+                          <SourcesPanel sources={msgSources} />
                         )}
 
                         {/* Message Body */}
                         {cleanContent ? (
-                          <FormattedMessage text={cleanContent} />
-                        ) : (
-                          msg.isStreaming && (
-                            <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.85rem" }}>
-                              <span style={{ width: 12, height: 12, border: "2px solid #38bdf8", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
-                              <span>Hermes is thinking...</span>
-                            </div>
-                          )
-                        )}
+                          <FormattedMessage text={cleanContent} onOpenFile={openFileByPath} />
+                        ) : showProgress ? (
+                          <MessageProgress label={msg.progressLabel as string} />
+                        ) : showThinkingSpinner ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#94a3b8", fontSize: "0.85rem" }}>
+                            <span style={{ width: 12, height: 12, border: "2px solid #38bdf8", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                            <span>Hermes is thinking...</span>
+                          </div>
+                        ) : null}
                       </div>
+
+                      {/* Per-message copy button (hover on desktop, always on mobile) */}
+                      {cleanContent && (
+                        <div
+                          className="chat-msg-actions"
+                          style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", paddingTop: "0.3rem", height: 24 }}
+                        >
+                          <CopyButton text={cleanContent} subtle />
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -1369,11 +1695,15 @@ export default function HermesChatPage() {
         </main>
 
         {/* ── Right Files Panel ── */}
-        {filesOpen && (
+        {(filesOpen || filePreview) && (
           <>
             {/* Overlay backdrop on tablet/mobile */}
-            <div className="chat-overlay-backdrop chat-files-backdrop" onClick={() => setFilesOpen(false)} />
-            <FilesPanel artifacts={artifacts} onClose={() => setFilesOpen(false)} />
+            <div className="chat-overlay-backdrop chat-files-backdrop" onClick={() => { setFilesOpen(false); setFilePreview(null); }} />
+            <FilesPanel
+              artifacts={artifacts}
+              initialPreview={filePreview}
+              onClose={() => { setFilesOpen(false); setFilePreview(null); }}
+            />
           </>
         )}
       </div>
@@ -1389,6 +1719,18 @@ export default function HermesChatPage() {
         @media (max-width: 560px) {
           .chat-header-meta { display: none !important; }
           .files-btn-label { display: none !important; }
+        }
+        /* Per-message copy button: hidden until row hover on desktop. */
+        .chat-msg-actions { opacity: 0; transition: opacity 0.15s; }
+        .chat-msg-row:hover .chat-msg-actions,
+        .chat-msg-row:focus-within .chat-msg-actions { opacity: 1; }
+        /* On touch/mobile there's no hover — always show the copy button. */
+        @media (hover: none), (max-width: 768px) {
+          .chat-msg-actions { opacity: 1 !important; }
+        }
+        /* Mobile-only chat sidebar toggle in the chat header. */
+        @media (max-width: 768px) {
+          .chat-sidebar-toggle-mobile { display: inline-flex !important; }
         }
       `}</style>
     </div>
