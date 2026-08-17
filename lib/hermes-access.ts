@@ -107,6 +107,6 @@ export async function getProfileCookie(req: NextRequest): Promise<string> {
 
   const client = await clientPromise;
   const user = await client.db("kstudy").collection("user").findOne({ email: session.user.email });
-  const profileName = user?.profile_name || "kstudy_free";
+  const profileName = user?.profile_name || "default";
   return `hermes_profile=${profileName}`;
 }
