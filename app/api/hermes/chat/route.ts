@@ -6,6 +6,7 @@ import {
   registerResource,
   type HermesResourceRecord,
 } from "@/lib/hermes-access";
+import { checkQuotaForEmail } from "@/lib/quota";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -29,6 +30,25 @@ export async function POST(req: NextRequest) {
     const resources = client.db("kstudy").collection<HermesResourceRecord>("hermes_resources");
     if (!(await ownsResource(resources, "session", body.session_id, session.user.id))) {
       return NextResponse.json({ error: "Hermes resource not found." }, { status: 404 });
+    }
+
+    // ── QUOTA GATE (SaaS customer profiles only) ──────────────────────────
+    // Block exhausted / inactive customers BEFORE we spend anything upstream.
+    // Mirrors the Telegram gateway's pre-run check_quota(); the web path had no
+    // equivalent, so a web-only customer could chat past their budget. Reads
+    // used_this_month_usd (kept fresh by usage_sync.py). Fail-open by design.
+    if (session.user.email) {
+      const quota = await checkQuotaForEmail(session.user.email);
+      if (!quota.allowed) {
+        return NextResponse.json(
+          {
+            error: quota.reason || "Credits exhausted.",
+            quota_blocked: true,
+            reason: quota.reason || "Credits exhausted.",
+          },
+          { status: 402 },
+        );
+      }
     }
 
     const cookie = await getProfileCookie(req);

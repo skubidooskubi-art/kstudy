@@ -546,6 +546,40 @@ export default function HermesChatPage() {
       });
 
       if (!startRes.ok) {
+        // Quota gate (402): render the friendly reason as the assistant reply
+        // instead of a generic error, and stop cleanly (no stream to open).
+        let quotaReason: string | null = null;
+        try {
+          const errData = await startRes.json();
+          if (startRes.status === 402 || errData?.quota_blocked) {
+            quotaReason = errData?.reason || errData?.error || "Credits exhausted.";
+          }
+        } catch {
+          /* non-JSON error body — fall through to generic handling */
+        }
+        if (quotaReason) {
+          setIsStreaming(false);
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            // Replace the empty streaming placeholder with the quota notice.
+            if (last && last.role === "assistant" && last.isStreaming) {
+              updated[updated.length - 1] = {
+                ...last,
+                content: quotaReason as string,
+                isStreaming: false,
+              };
+            } else {
+              updated.push({
+                role: "assistant",
+                content: quotaReason as string,
+                timestamp: Date.now(),
+              });
+            }
+            return updated;
+          });
+          return;
+        }
         throw new Error(`Chat start error: ${startRes.statusText}`);
       }
 
