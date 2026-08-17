@@ -1,12 +1,19 @@
 import { getAuth } from "@/lib/auth";
+import { getProfileCookie } from "@/lib/hermes-access";
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/lib/db";
-import { promises as fs } from "fs";
-import { resolve, basename, extname } from "path";
+import { basename, extname, resolve } from "path";
 
 export const dynamic = "force-dynamic";
 
-// Simple, fast inlined MIME-type lookup map
+// Hermes WebUI backend. This Next.js app runs inside a Coolify container with
+// NO bind mounts, so the agent-written files on the *host* disk
+// (/home/victor/.hermes/...) are NOT visible to `fs` in here. We therefore
+// fetch file bytes over the network from Hermes — the same transport the chat
+// route already uses — instead of reading container-local disk.
+const HERMES_TARGET = process.env.HERMES_WEB_URL || "http://10.0.1.1:8787";
+
+// Simple, fast inlined MIME-type lookup map (fallback only; we prefer the
+// Content-Type Hermes returns).
 const MIME_MAP: Record<string, string> = {
   ".pdf":   "application/pdf",
   ".docx":  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -44,8 +51,10 @@ export async function GET(req: NextRequest) {
     // Resolve and normalize target path
     const targetPath = resolve(rawPath);
 
-    // ── SECURITY BOWER BOUNDARIES ──
-    // Allow files created in any Hermes profile folder, WebUI attachments, or workspace
+    // ── SECURITY: BOUNDARIES ──
+    // Defense-in-depth: only proxy files created in a Hermes profile folder,
+    // WebUI attachments, or the shared workspace. Hermes /api/media enforces
+    // its own allow-list too, but we fail closed here as well.
     const allowedProfilesRoot   = resolve("/home/victor/.hermes/profiles");
     const allowedAttachmentsDir = resolve("/home/victor/.hermes/webui/attachments");
     const allowedWorkspaceDir   = resolve("/home/victor/workspace");
@@ -62,31 +71,46 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Check if file exists on disk
-    try {
-      const stats = await fs.stat(targetPath);
-      if (!stats.isFile()) {
-        return NextResponse.json({ error: "Requested path is not a file." }, { status: 400 });
+    // Fetch the file bytes from Hermes over the network. The container cannot
+    // read the host filesystem, so this is the only path that works.
+    const cookie = await getProfileCookie(req);
+    const upstreamUrl = `${HERMES_TARGET}/api/media?path=${encodeURIComponent(targetPath)}`;
+    const upstreamRes = await fetch(upstreamUrl, {
+      method: "GET",
+      headers: { Cookie: cookie },
+      cache: "no-store",
+    });
+
+    if (!upstreamRes.ok || !upstreamRes.body) {
+      if (upstreamRes.status === 404) {
+        return NextResponse.json({ error: "File not found on disk." }, { status: 404 });
       }
-    } catch (err) {
-      return NextResponse.json({ error: "File not found on disk." }, { status: 404 });
+      const errText = await upstreamRes.text().catch(() => "");
+      return NextResponse.json(
+        { error: `Upstream error: ${errText || upstreamRes.statusText}` },
+        { status: upstreamRes.status || 502 }
+      );
     }
 
-    // Read file bytes
-    const fileBuffer = await fs.readFile(targetPath);
     const filename = basename(targetPath);
     const ext = extname(targetPath).toLowerCase();
-    const mimeType = MIME_MAP[ext] || "application/octet-stream";
+    // Prefer our known MIME for the extension (Hermes sometimes returns a
+    // generic application/octet-stream for .md/.docx/.xlsx); fall back to what
+    // Hermes reported, then to octet-stream.
+    const upstreamType = upstreamRes.headers.get("content-type");
+    const mimeType =
+      MIME_MAP[ext] || upstreamType || "application/octet-stream";
 
-    // Stream back to client
-    return new NextResponse(fileBuffer, {
-      status: 200,
-      headers: {
-        "Content-Type": mimeType,
-        "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
-        "Content-Length": fileBuffer.length.toString(),
-      },
-    });
+    // Stream the upstream body straight back to the client as an attachment.
+    const headers: Record<string, string> = {
+      "Content-Type": mimeType,
+      "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+      "Cache-Control": "no-store",
+    };
+    const contentLength = upstreamRes.headers.get("content-length");
+    if (contentLength) headers["Content-Length"] = contentLength;
+
+    return new NextResponse(upstreamRes.body, { status: 200, headers });
 
   } catch (err) {
     console.error("Secure file download error:", err);
