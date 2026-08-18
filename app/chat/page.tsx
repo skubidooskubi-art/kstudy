@@ -71,10 +71,15 @@ function sanitizeText(raw: string): string {
   // 1. Strip <untrusted_tool_result> wrappers
   cleaned = cleaned.replace(/<untrusted_tool_result[\s\S]*?<\/untrusted_tool_result>/g, "");
 
-  // 2. Strip system prompt injections or raw JSON tool results
+  // 2. Strip system prompt injections or raw JSON tool results / definitions
   const trimmed = cleaned.trim();
   if (
     (trimmed.startsWith("{") && trimmed.endsWith("}") && (
+      trimmed.includes('"name":') ||
+      trimmed.includes('"description":') ||
+      trimmed.includes('"parameters":') ||
+      trimmed.includes('"arguments":') ||
+      trimmed.includes('"tool":') ||
       trimmed.includes('"success":') ||
       trimmed.includes('"processes":') ||
       trimmed.includes('"results":') ||
@@ -100,11 +105,13 @@ function splitThinkingAndResponse(content: string): { thinking: string; response
     const p = paragraphs[i].trim();
     if (!p) continue;
 
-    // A paragraph is a thinking header if it starts with one of the standard progress action verbs and is short (<= 5 words).
-    const isThinkingHeader = /^(Exploring|Searching|Checking|Inspecting|Investigating|Gathering|Extracting|Conducting|Listing|Synthesizing|Analyzing|Refining|Verifying)\b/i.test(p) && p.split(/\s+/).length <= 5;
+    // A paragraph is a thinking header if it starts with one of the standard progress action verbs and is short (<= 6 words).
+    const isThinkingHeader = /^(Exploring|Searching|Checking|Inspecting|Investigating|Gathering|Extracting|Conducting|Listing|Synthesizing|Analyzing|Refining|Verifying|Resolving|Confirming|Optimizing|Remembering)\b/i.test(p) && p.split(/\s+/).length <= 6;
     
-    // A paragraph is a thinking action if it starts with a standard active progress phrasing.
-    const isThinkingAction = /^(I'm currently|I am currently|I'm now focusing|I'm now about to|I am about to|I am checking|I'm checking|My next step|My focus is|My analysis indicates|I've compiled|I am now reading|I am reading|I am verifying|I'm verifying)\b/i.test(p);
+    // A paragraph is a thinking action if it starts with a standard active progress phrasing and describes ongoing action.
+    const isThinkingAction = /^(I'm\s+|I\s+am\s+|I've\s+|I\s+have\s+|I\s+noticed\s+|My\s+|The\s+|Refining\b|Optimizing\b)/i.test(p) && (
+      /currently|now|about\s+to|checking|verifying|inspecting|processing|evaluating|loading|generating|compiling|focusing|adjusting|investigating|proceeding|located|found|identified|got\b|analysis|immediate|next|goal|visual\s+inspection/i.test(p)
+    );
 
     if (isThinkingHeader || isThinkingAction) {
       thinkingParagraphs.push(p);
@@ -1452,10 +1459,19 @@ export default function HermesChatPage() {
 
     setInputText("");
     setStagedFiles([]);
-    // Reset textarea height back to one line
+    // Reset textarea height back to one line, and force blur to reset mobile keyboard composition buffer
     if (textareaRef.current) {
+      textareaRef.current.value = "";
+      textareaRef.current.blur();
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.overflowY = "hidden";
+
+      // On desktop (screen width > 768px), immediately refocus so user can type without clicking.
+      // On mobile, keep it blurred to prevent the keyboard/composition from staying active with old buffer.
+      const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+      if (!isMobile) {
+        textareaRef.current.focus();
+      }
     }
 
     const uploadedAttachments: Attachment[] = [];
