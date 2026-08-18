@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import clientPromise from "@/lib/db";
 import { sendAccessCodeEmail } from "@/lib/mail";
+import { ensureWebProfile } from "@/lib/provision";
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY!;
 
@@ -97,6 +98,25 @@ export async function POST(req: NextRequest) {
 
       // Send confirmation email containing the access code and setup steps
       await sendAccessCodeEmail(email, accessCode, userName);
+
+      // ── Provision the customer's OWN isolated profile at subscription time ──
+      // A paying customer should immediately get their own scrubbed cust_
+      // profile for web chat — NOT the shared trial profile and NEVER the
+      // owner's "default" profile. This creates a WEB-ONLY profile (no bot
+      // token, no Telegram gateway); a personal Telegram bot is merged into
+      // this SAME profile later, only if/when they connect one.
+      //
+      // Fail-soft: ensureWebProfile never throws. If the provision API is
+      // briefly unreachable, the profile_watcher backstop picks it up, and the
+      // chat page's ensure-profile call is a further safety net — so we still
+      // ACK the webhook (a 500 would make Paystack retry the whole event).
+      try {
+        const prov = await ensureWebProfile(email);
+        console.log(`[webhook] ensureWebProfile(${email}): ${prov.status}` +
+          (prov.profileName ? ` -> ${prov.profileName}` : ""));
+      } catch (provErr) {
+        console.error("[webhook] ensureWebProfile failed (non-fatal):", provErr);
+      }
 
     } catch (err) {
       console.error("Webhook DB/Mail error:", err);
