@@ -84,13 +84,13 @@ function Topbar({ userName }: { userName?: string }) {
           )}
           <button onClick={handleSignOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.6rem", padding: "0.4rem 0.85rem", color: "var(--text-muted)", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
         </div>
-        <button onClick={() => setIsOpen(!isOpen)} style={{ display: "none", background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", padding: "0.25rem" }} className="hamburger-btn">
+        <button onClick={() => setIsOpen(!isOpen)} style={{ background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", padding: "0.25rem" }} className="hamburger-btn">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             {isOpen ? <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></> : <><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></>}
           </svg>
         </button>
         {isOpen && (
-          <div className="mobile-drawer" style={{ position: "absolute", top: "100%", left: 0, right: 0, padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem", zIndex: 100, marginTop: "0.5rem", borderRadius: "1.25rem", background: "rgba(9, 13, 24, 0.98)", border: "1px solid var(--border)", backdropFilter: "blur(20px)", boxShadow: "0 10px 35px rgba(0,0,0,0.6)" }}>
+          <div className="mobile-drawer" style={{ position: "absolute", top: "100%", left: "clamp(0.75rem, 4vw, 1.5rem)", right: "clamp(0.75rem, 4vw, 1.5rem)", padding: "1.25rem", display: "flex", flexDirection: "column", gap: "1rem", zIndex: 100, marginTop: "0.5rem", borderRadius: "1.25rem", background: "rgba(9, 13, 24, 0.98)", border: "1px solid var(--border)", backdropFilter: "blur(20px)", boxShadow: "0 10px 35px rgba(0,0,0,0.6)" }}>
             <Link href="/" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>Home</Link>
             <Link href="/dashboard" onClick={() => setIsOpen(false)} style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 600 }}>Profile</Link>
             <Link href="/chat" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>AI Assistant</Link>
@@ -121,7 +121,7 @@ function UsageCard({ usage }: { usage: UsageData | null }) {
   const statusLabel = usage.status === "active" ? "🟢 Active" : usage.status === "quota_exceeded" ? "🔴 Quota Exceeded" : usage.status === "provisioning" ? "🟡 Provisioning..." : "⚪ Inactive";
 
   return (
-    <div className="glass" style={{ padding: "1.75rem", borderLeft: `3px solid ${barColor}` }}>
+    <div className="glass" style={{ padding: "clamp(1rem, 4vw, 1.75rem)", borderLeft: `3px solid ${barColor}` }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <span style={{ fontSize: "1.4rem" }}>📊</span>
@@ -136,18 +136,18 @@ function UsageCard({ usage }: { usage: UsageData | null }) {
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.75rem", marginBottom: "1rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Used</div>
-          <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>${usage.used_this_month_usd.toFixed(2)}</div>
+          <div style={{ fontSize: "clamp(0.6rem, 2.5vw, 0.7rem)", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Used</div>
+          <div style={{ fontSize: "clamp(1rem, 4vw, 1.2rem)", fontWeight: 800, color: "var(--text-primary)" }}>${usage.used_this_month_usd.toFixed(2)}</div>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Remaining</div>
-          <div style={{ fontSize: "1.2rem", fontWeight: 800, color: usage.remaining_usd > 0 ? "#22c55e" : "#ef4444" }}>${usage.remaining_usd.toFixed(2)}</div>
+          <div style={{ fontSize: "clamp(0.6rem, 2.5vw, 0.7rem)", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Remaining</div>
+          <div style={{ fontSize: "clamp(1rem, 4vw, 1.2rem)", fontWeight: 800, color: usage.remaining_usd > 0 ? "#22c55e" : "#ef4444" }}>${usage.remaining_usd.toFixed(2)}</div>
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: "0.7rem", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Budget</div>
-          <div style={{ fontSize: "1.2rem", fontWeight: 800, color: "var(--text-primary)" }}>${usage.monthly_budget_usd.toFixed(2)}</div>
+          <div style={{ fontSize: "clamp(0.6rem, 2.5vw, 0.7rem)", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Budget</div>
+          <div style={{ fontSize: "clamp(1rem, 4vw, 1.2rem)", fontWeight: 800, color: "var(--text-primary)" }}>${usage.monthly_budget_usd.toFixed(2)}</div>
         </div>
       </div>
 
@@ -214,7 +214,7 @@ export default function DashboardPage() {
         @keyframes spin { to { transform:rotate(360deg); } }
       `}</style>
 
-      <main style={{ minHeight: "100vh", maxWidth: 1100, margin: "0 auto", padding: "100px 1.5rem 4rem" }}>
+      <main style={{ minHeight: "100vh", maxWidth: 1100, margin: "0 auto", padding: "clamp(80px, 9vh, 100px) clamp(0.75rem, 4vw, 1.5rem) 4rem" }}>
         
         <div className="orb orb-1" />
         <div className="orb orb-2" style={{ top: "40%", right: "-10%" }} />
@@ -236,7 +236,7 @@ export default function DashboardPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
             
             {/* Profile Info */}
-            <div className="glass" style={{ padding: "1.75rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <div className="glass" style={{ padding: "clamp(1rem, 4vw, 1.75rem)", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                 {user?.image ? (
                   <img src={user.image} alt={user.name} style={{ width: 56, height: 56, borderRadius: "50%", border: "2px solid var(--violet)" }} />
@@ -266,7 +266,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Subscription Card */}
-            <div className="glass" style={{ padding: "1.75rem", borderLeft: `3px solid ${isSubscribed ? "var(--violet-light)" : "var(--border)"}` }}>
+            <div className="glass" style={{ padding: "clamp(1rem, 4vw, 1.75rem)", borderLeft: `3px solid ${isSubscribed ? "var(--violet-light)" : "var(--border)"}` }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
                 <h3 style={{ fontWeight: 800, fontSize: "1.05rem" }}>Subscription</h3>
                 <span className={`badge ${isSubscribed ? "badge-violet" : "badge-cyan"}`} style={{ padding: "0.2rem 0.6rem" }}>
@@ -314,7 +314,7 @@ export default function DashboardPage() {
             <UsageCard usage={usage} />
 
             {/* Telegram Bot Details */}
-            <div className="glass" style={{ padding: "1.75rem" }}>
+            <div className="glass" style={{ padding: "clamp(1rem, 4vw, 1.75rem)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
                 <span style={{ fontSize: "1.4rem" }}>🤖</span>
                 <h3 style={{ fontWeight: 800, fontSize: "1.1rem" }}>Your AI Bot Config</h3>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Transactions History */}
-            <div className="glass" style={{ padding: "1.75rem", overflow: "hidden" }}>
+            <div className="glass" style={{ padding: "clamp(1rem, 4vw, 1.75rem)", overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1.25rem" }}>
                 <span style={{ fontSize: "1.4rem" }}>💳</span>
                 <h3 style={{ fontWeight: 800, fontSize: "1.1rem" }}>Billing & Transactions</h3>

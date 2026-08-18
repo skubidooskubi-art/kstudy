@@ -109,7 +109,224 @@ function formatBytes(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/* ─── Simple Markdown Renderer (UNCHANGED bubble styling) ──────── */
+/* ─── Custom Markdown Parser & Renderer ────────────────────────── */
+type MarkdownBlock =
+  | { type: "header"; level: number; text: string }
+  | { type: "list"; ordered: boolean; items: string[] }
+  | { type: "table"; headers: string[]; alignments: string[]; rows: string[][] }
+  | { type: "rule" }
+  | { type: "file"; path: string; name: string }
+  | { type: "paragraph"; text: string };
+
+function parseMarkdownBlocks(text: string): MarkdownBlock[] {
+  const lines = text.split("\n");
+  const blocks: MarkdownBlock[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!line && trimmed === "") {
+      i++;
+      continue;
+    }
+
+    // Check for MEDIA file path (attachment card)
+    if (line.includes("MEDIA:/")) {
+      const match = line.match(/MEDIA:(\/[^\s]+)/);
+      if (match) {
+        const absolutePath = match[1];
+        const fileName = absolutePath.split("/").pop() || "Document.pdf";
+        blocks.push({ type: "file", path: absolutePath, name: fileName });
+        i++;
+        continue;
+      }
+    }
+
+    // Headers
+    if (trimmed.startsWith("#")) {
+      const match = trimmed.match(/^(#{1,6})\s+(.*)$/);
+      if (match) {
+        blocks.push({
+          type: "header",
+          level: match[1].length,
+          text: match[2],
+        });
+        i++;
+        continue;
+      }
+    }
+
+    // Horizontal Rules
+    if (trimmed === "---" || trimmed === "***" || trimmed === "___") {
+      blocks.push({ type: "rule" });
+      i++;
+      continue;
+    }
+
+    // Unordered lists
+    if (trimmed.startsWith("- ") || trimmed.startsWith("* ") || trimmed.startsWith("• ")) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const currentTrimmed = lines[i].trim();
+        const listMatch = currentTrimmed.match(/^[-*•]\s+(.*)$/);
+        if (listMatch) {
+          items.push(listMatch[1]);
+          i++;
+        } else if (currentTrimmed === "") {
+          i++;
+        } else {
+          break;
+        }
+      }
+      blocks.push({ type: "list", ordered: false, items });
+      continue;
+    }
+
+    // Ordered lists
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (i < lines.length) {
+        const currentTrimmed = lines[i].trim();
+        const listMatch = currentTrimmed.match(/^\d+\.\s+(.*)$/);
+        if (listMatch) {
+          items.push(listMatch[1]);
+          i++;
+        } else if (currentTrimmed === "") {
+          i++;
+        } else {
+          break;
+        }
+      }
+      blocks.push({ type: "list", ordered: true, items });
+      continue;
+    }
+
+    // Tables
+    if (trimmed.startsWith("|")) {
+      const rawHeader = line;
+      const headers = rawHeader.split("|").map(s => s.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+      
+      if (i + 1 < lines.length && lines[i + 1].trim().startsWith("|") && lines[i + 1].includes("-")) {
+        const separatorLine = lines[i + 1].trim();
+        const columnsCount = headers.length;
+        
+        const alignments = separatorLine.split("|")
+          .map(s => s.trim())
+          .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+          .map(s => {
+            if (s.startsWith(":") && s.endsWith(":")) return "center";
+            if (s.endsWith(":")) return "right";
+            return "left";
+          });
+
+        const rows: string[][] = [];
+        i += 2; // skip header and separator lines
+
+        while (i < lines.length && lines[i].trim().startsWith("|")) {
+          const rowLine = lines[i].trim();
+          if (rowLine.includes("-") && rowLine.includes(":")) {
+            i++;
+            continue;
+          }
+          const cells = rowLine.split("|")
+            .map(s => s.trim())
+            .filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
+          
+          while (cells.length < columnsCount) {
+            cells.push("");
+          }
+          rows.push(cells.slice(0, columnsCount));
+          i++;
+        }
+
+        blocks.push({ type: "table", headers, alignments, rows });
+        continue;
+      }
+    }
+
+    // Normal Paragraph
+    let paragraphText = line;
+    i++;
+    while (
+      i < lines.length &&
+      lines[i].trim() !== "" &&
+      !lines[i].trim().startsWith("#") &&
+      !lines[i].trim().startsWith("- ") &&
+      !lines[i].trim().startsWith("* ") &&
+      !/^\d+\.\s+/.test(lines[i].trim()) &&
+      !lines[i].trim().startsWith("|") &&
+      lines[i].trim() !== "---" &&
+      lines[i].trim() !== "***" &&
+      !lines[i].includes("MEDIA:/")
+    ) {
+      paragraphText += "\n" + lines[i];
+      i++;
+    }
+    blocks.push({ type: "paragraph", text: paragraphText });
+  }
+
+  return blocks;
+}
+
+function renderInlineMarkdown(text: string): React.ReactNode {
+  if (!text) return null;
+
+  const regex = /(\[.*?\]\(.*?\)\*?|\*\*.*?\*\*|`[^`]+`)/g;
+  const parts = text.split(regex);
+
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={idx} style={{ color: "var(--text-primary)", fontWeight: 700 }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code
+          key={idx}
+          style={{
+            background: "rgba(255, 255, 255, 0.08)",
+            padding: "0.15rem 0.35rem",
+            borderRadius: "0.35rem",
+            fontSize: "0.82rem",
+            fontFamily: "ui-monospace, monospace",
+            color: "var(--cyan)",
+          }}
+        >
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+    if (part.startsWith("[") && part.includes("](")) {
+      const match = part.match(/\[(.*?)\]\((.*?)\)/);
+      if (match) {
+        const linkText = match[1];
+        const linkUrl = match[2];
+        return (
+          <a
+            key={idx}
+            href={linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: "var(--cyan)",
+              textDecoration: "underline",
+              fontWeight: 600,
+            }}
+          >
+            {linkText}
+          </a>
+        );
+      }
+    }
+    return part;
+  });
+}
+
 function FormattedMessage({ text, onOpenFile }: { text: string; onOpenFile?: (path: string, name: string) => void }) {
   const clean = sanitizeText(text);
   if (!clean) return null;
@@ -117,7 +334,7 @@ function FormattedMessage({ text, onOpenFile }: { text: string; onOpenFile?: (pa
   const blocks = clean.split(/(```[\s\S]*?```)/g);
 
   return (
-    <div style={{ lineHeight: 1.6, fontSize: "0.92rem", wordBreak: "break-word" }}>
+    <div style={{ lineHeight: 1.6, fontSize: "0.92rem", wordBreak: "break-word", display: "flex", flexDirection: "column", gap: "0.65rem" }}>
       {blocks.map((block, idx) => {
         if (block.startsWith("```")) {
           const firstLineEnd = block.indexOf("\n");
@@ -125,7 +342,7 @@ function FormattedMessage({ text, onOpenFile }: { text: string; onOpenFile?: (pa
           const code = firstLineEnd > -1 ? block.slice(firstLineEnd + 1, -3) : block.slice(3, -3);
 
           return (
-            <div key={idx} style={{ margin: "0.75rem 0", borderRadius: "0.6rem", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.4)" }}>
+            <div key={idx} style={{ margin: "0.5rem 0", borderRadius: "0.6rem", overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.4)" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.05)", padding: "0.3rem 0.5rem 0.3rem 0.85rem", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
                 <span style={{ fontSize: "0.72rem", color: "var(--text-muted)", fontWeight: 600, letterSpacing: "0.03em" }}>
                   {language ? language.toUpperCase() : "CODE"}
@@ -139,97 +356,140 @@ function FormattedMessage({ text, onOpenFile }: { text: string; onOpenFile?: (pa
           );
         }
 
-        const lines = block.split("\n");
-        return (
-          <span key={idx}>
-            {lines.map((line, lIdx) => {
-              // ── Check if line contains a MEDIA:/ absolute path attachment ──
-              if (line.includes("MEDIA:/")) {
-                const match = line.match(/MEDIA:(\/[^\s]+)/);
-                if (match) {
-                  const absolutePath = match[1];
-                  const fileName = absolutePath.split("/").pop() || "Document.pdf";
+        const parsedBlocks = parseMarkdownBlocks(block);
+        return parsedBlocks.map((b, bIdx) => {
+          if (b.type === "header") {
+            const levelStyle =
+              b.level === 1
+                ? { fontSize: "1.45rem", fontWeight: 800, margin: "1rem 0 0.5rem", borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: "0.25rem", color: "var(--text-primary)" }
+                : b.level === 2
+                ? { fontSize: "1.25rem", fontWeight: 700, margin: "0.9rem 0 0.4rem", color: "var(--text-primary)" }
+                : b.level === 3
+                ? { fontSize: "1.08rem", fontWeight: 700, margin: "0.8rem 0 0.35rem", color: "var(--text-primary)" }
+                : { fontSize: "0.95rem", fontWeight: 700, margin: "0.7rem 0 0.3rem", color: "var(--text-primary)" };
 
-                  return (
-                    <div
-                      key={lIdx}
-                      role={onOpenFile ? "button" : undefined}
-                      tabIndex={onOpenFile ? 0 : undefined}
-                      onClick={onOpenFile ? () => onOpenFile(absolutePath, fileName) : undefined}
-                      onKeyDown={onOpenFile ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenFile(absolutePath, fileName); } } : undefined}
-                      style={{
-                        margin: "1rem 0",
-                        padding: "0.85rem 1.1rem",
-                        background: "rgba(255, 255, 255, 0.05)",
-                        border: "1px solid rgba(255, 255, 255, 0.12)",
-                        borderRadius: "0.65rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "1rem",
-                        cursor: onOpenFile ? "pointer" : "default",
-                        transition: "border-color 0.2s, background 0.2s",
-                      }}
-                      onMouseEnter={onOpenFile ? (e) => { e.currentTarget.style.borderColor = "rgba(0,212,255,0.5)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; } : undefined}
-                      onMouseLeave={onOpenFile ? (e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } : undefined}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", minWidth: 0 }}>
-                        <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>📄</span>
-                        <div style={{ textAlign: "left", minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {fileName}
-                          </div>
-                          <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>
-                            {onOpenFile ? "Click to preview · Generated document" : "Generated Assistant Document"}
-                          </div>
-                        </div>
-                      </div>
-                      <a
-                        href={`/api/hermes/download?path=${encodeURIComponent(absolutePath)}`}
-                        download={fileName}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          background: "var(--cyan)",
-                          color: "#0f172a",
-                          fontWeight: 700,
-                          fontSize: "0.8rem",
-                          padding: "0.35rem 0.85rem",
-                          borderRadius: "0.45rem",
-                          textDecoration: "none",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.35rem",
-                          flexShrink: 0,
-                          transition: "opacity 0.2s",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
-                        onMouseLeave={(e) => (e.currentTarget.style.opacity = "1.0")}
-                      >
-                        <Icon name="download" size={14} /> Download
-                      </a>
+            const Tag = `h${Math.min(b.level, 6)}` as any;
+            return (
+              <Tag key={bIdx} style={levelStyle}>
+                {renderInlineMarkdown(b.text)}
+              </Tag>
+            );
+          }
+
+          if (b.type === "list") {
+            const Tag = b.ordered ? "ol" : "ul";
+            return (
+              <Tag key={bIdx} style={{ paddingLeft: "1.3rem", margin: "0.4rem 0", display: "flex", flexDirection: "column", gap: "0.25rem" }}>
+                {b.items.map((item, itemIdx) => (
+                  <li key={itemIdx} style={{ listStyleType: b.ordered ? "decimal" : "disc", color: "var(--text-secondary)" }}>
+                    {renderInlineMarkdown(item)}
+                  </li>
+                ))}
+              </Tag>
+            );
+          }
+
+          if (b.type === "table") {
+            return (
+              <div key={bIdx} style={{ overflowX: "auto", margin: "0.85rem 0", borderRadius: "0.5rem", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
+                  <thead>
+                    <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                      {b.headers.map((h, hIdx) => (
+                        <th key={hIdx} style={{ padding: "0.55rem 0.8rem", fontWeight: 700, textAlign: b.alignments[hIdx] as any || "left", color: "var(--text-primary)", borderRight: "1px solid rgba(255,255,255,0.04)" }}>
+                          {renderInlineMarkdown(h)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {b.rows.map((row, rIdx) => (
+                      <tr key={rIdx} style={{ borderBottom: rIdx === b.rows.length - 1 ? "none" : "1px solid rgba(255,255,255,0.04)", background: rIdx % 2 === 1 ? "rgba(255,255,255,0.01)" : "transparent" }}>
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx} style={{ padding: "0.5rem 0.8rem", textAlign: b.alignments[cIdx] as any || "left", color: "var(--text-secondary)", borderRight: "1px solid rgba(255,255,255,0.04)" }}>
+                            {renderInlineMarkdown(cell)}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            );
+          }
+
+          if (b.type === "rule") {
+            return <div key={bIdx} style={{ margin: "0.85rem 0", borderTop: "1px solid rgba(255,255,255,0.08)" }} />;
+          }
+
+          if (b.type === "file") {
+            return (
+              <div
+                key={bIdx}
+                role={onOpenFile ? "button" : undefined}
+                tabIndex={onOpenFile ? 0 : undefined}
+                onClick={onOpenFile ? () => onOpenFile(b.path, b.name) : undefined}
+                onKeyDown={onOpenFile ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onOpenFile(b.path, b.name); } } : undefined}
+                style={{
+                  margin: "0.85rem 0",
+                  padding: "0.85rem 1.1rem",
+                  background: "rgba(255, 255, 255, 0.05)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                  borderRadius: "0.65rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "1rem",
+                  cursor: onOpenFile ? "pointer" : "default",
+                  transition: "border-color 0.2s, background 0.2s",
+                }}
+                onMouseEnter={onOpenFile ? (e) => { e.currentTarget.style.borderColor = "rgba(0,212,255,0.5)"; e.currentTarget.style.background = "rgba(255,255,255,0.08)"; } : undefined}
+                onMouseLeave={onOpenFile ? (e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.background = "rgba(255,255,255,0.05)"; } : undefined}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", minWidth: 0 }}>
+                  <span style={{ fontSize: "1.5rem", flexShrink: 0 }}>📄</span>
+                  <div style={{ textAlign: "left", minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, color: "var(--text-primary)", fontSize: "0.85rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {b.name}
                     </div>
-                  );
-                }
-              }
+                    <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "0.1rem" }}>
+                      {onOpenFile ? "Click to preview · Generated document" : "Generated Assistant Document"}
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href={`/api/hermes/download?path=${encodeURIComponent(b.path)}`}
+                  download={b.name}
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: "var(--cyan)",
+                    color: "#0f172a",
+                    fontWeight: 700,
+                    fontSize: "0.8rem",
+                    padding: "0.35rem 0.85rem",
+                    borderRadius: "0.45rem",
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "0.35rem",
+                    flexShrink: 0,
+                    transition: "opacity 0.2s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
+                  onMouseLeave={(e) => (e.currentTarget.style.opacity = "1.0")}
+                >
+                  <Icon name="download" size={14} /> Download
+                </a>
+              </div>
+            );
+          }
 
-              const parts = line.split(/(\*\*.*?\*\*|`[^`]+`)/g);
-
-              return (
-                <p key={lIdx} style={{ margin: lIdx === lines.length - 1 ? 0 : "0 0 0.5rem 0" }}>
-                  {parts.map((part, pIdx) => {
-                    if (part.startsWith("**") && part.endsWith("**")) {
-                      return <strong key={pIdx} style={{ color: "var(--text-primary)", fontWeight: 700 }}>{part.slice(2, -2)}</strong>;
-                    }
-                    if (part.startsWith("`") && part.endsWith("`")) {
-                      return <code key={pIdx} style={{ background: "rgba(255,255,255,0.1)", padding: "0.15rem 0.35rem", borderRadius: "0.3rem", fontSize: "0.83rem", fontFamily: "monospace", color: "var(--cyan)" }}>{part.slice(1, -1)}</code>;
-                    }
-                    return part;
-                  })}
-                </p>
-              );
-            })}
-          </span>
-        );
+          return (
+            <p key={bIdx} style={{ margin: "0 0 0.4rem 0", color: "var(--text-secondary)", lineHeight: 1.6 }}>
+              {renderInlineMarkdown(b.text)}
+            </p>
+          );
+        });
       })}
     </div>
   );
@@ -818,6 +1078,7 @@ export default function HermesChatPage() {
   const [filePreview, setFilePreview] = useState<ChatArtifact | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -876,13 +1137,22 @@ export default function HermesChatPage() {
     });
   }, []);
 
-  // Auto-scroll to bottom of message list
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const prevMessagesLengthRef = useRef(messages.length);
+
+  // Auto-scroll to bottom of message list locally in container (keeps mobile header fixed)
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "instant") => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior,
+      });
+    }
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
+    const isNewMessage = messages.length > prevMessagesLengthRef.current;
+    prevMessagesLengthRef.current = messages.length;
+    scrollToBottom(isNewMessage ? "smooth" : "instant");
   }, [messages, scrollToBottom]);
 
   // Fetch session history list
@@ -1532,10 +1802,13 @@ export default function HermesChatPage() {
           )}
 
           {/* Messages Scroll Area */}
-          <div style={{
-            flex: 1, overflowY: "auto", padding: "1.5rem 1.5rem 0.5rem",
-            display: "flex", flexDirection: "column", gap: "1.25rem",
-          }}>
+          <div 
+            ref={scrollContainerRef}
+            style={{
+              flex: 1, overflowY: "auto", padding: "1.5rem 1.5rem 0.5rem",
+              display: "flex", flexDirection: "column", gap: "1.25rem",
+            }}
+          >
             <div style={{ width: "100%", maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.25rem", flex: 1 }}>
               {messages.length === 0 ? (
                 <div style={{
@@ -1724,8 +1997,13 @@ export default function HermesChatPage() {
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSendMessage();
+                      // On mobile devices (screen width <= 768px), let Enter insert a new line naturally.
+                      // On desktop, Enter sends the message.
+                      const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+                      if (!isMobile) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
                     }
                   }}
                   onFocus={(e) => {
@@ -1793,9 +2071,6 @@ export default function HermesChatPage() {
                 )}
               </div>
             </div>
-            <p style={{ textAlign: "center", marginTop: "0.45rem", fontSize: "0.68rem", color: "#1e293b", letterSpacing: "0.01em" }}>
-              Shift+Enter for new line
-            </p>
           </div>
         </main>
 
