@@ -30,7 +30,7 @@ type UsageData = {
 };
 
 /* ─── Topbar ─────────────────────────────────────────────────── */
-function Topbar({ userName }: { userName?: string }) {
+function Topbar({ userName, userEmail }: { userName?: string; userEmail?: string }) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [visible, setVisible] = useState(true);
@@ -77,6 +77,17 @@ function Topbar({ userName }: { userName?: string }) {
           <Link href="/" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Home</Link>
           <Link href="/chat" style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 600 }}>AI Assistant</Link>
           <Link href="/setup" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Setup Guide</Link>
+          {userEmail && (() => {
+            const ADMIN_EMAILS = [
+              "skubidooskubi@gmail.com",
+              "vikiflowdesign@gmail.com",
+              "victoruche3022@gmail.com"
+            ];
+            const isAdmin = ADMIN_EMAILS.includes(userEmail.toLowerCase().trim());
+            return isAdmin && (
+              <Link href="/admin" style={{ color: "#a5b4fc", textDecoration: "none", fontSize: "0.85rem", fontWeight: 600 }}>🛡️ Admin</Link>
+            );
+          })()}
           {userName && (
             <span style={{ fontSize: "0.83rem", color: "var(--text-muted)", borderLeft: "1px solid var(--border)", paddingLeft: "0.85rem" }}>
               👋 <strong style={{ color: "var(--text-primary)" }}>{userName.split(" ")[0]}</strong>
@@ -95,6 +106,17 @@ function Topbar({ userName }: { userName?: string }) {
             <Link href="/dashboard" onClick={() => setIsOpen(false)} style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 600 }}>Profile</Link>
             <Link href="/chat" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>AI Assistant</Link>
             <Link href="/setup" onClick={() => setIsOpen(false)} style={{ color: "var(--text-primary)", textDecoration: "none", fontSize: "0.95rem", fontWeight: 500 }}>Setup Guide</Link>
+            {userEmail && (() => {
+              const ADMIN_EMAILS = [
+                "skubidooskubi@gmail.com",
+                "vikiflowdesign@gmail.com",
+                "victoruche3022@gmail.com"
+              ];
+              const isAdmin = ADMIN_EMAILS.includes(userEmail.toLowerCase().trim());
+              return isAdmin && (
+                <Link href="/admin" onClick={() => setIsOpen(false)} style={{ color: "#a5b4fc", textDecoration: "none", fontSize: "0.95rem", fontWeight: 600 }}>🛡️ Admin Settings</Link>
+              );
+            })()}
             <button onClick={handleSignOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.75rem", padding: "0.6rem", color: "#f87171", width: "100%", fontSize: "0.9rem", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
           </div>
         )}
@@ -208,7 +230,7 @@ export default function DashboardPage() {
 
   return (
     <>
-      <Topbar userName={user?.name} />
+      <Topbar userName={user?.name} userEmail={user?.email || undefined} />
       <style>{`
         @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
         @keyframes spin { to { transform:rotate(360deg); } }

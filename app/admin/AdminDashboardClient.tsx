@@ -18,22 +18,22 @@ export default function AdminDashboardClient({ email }: { email: string }) {
 
   useEffect(() => {
     async function load() {
-      const data = await getAdminSettings();
-      // Try to load from localStorage as client preview fallback
-      if (typeof window !== "undefined") {
-        const local = localStorage.getItem("kstudy_admin_settings_preview");
-        if (local) {
-          try {
-            setSettings(JSON.parse(local));
-            setLoading(false);
-            return;
-          } catch (e) {
-            console.error("Local settings load failed", e);
+      try {
+        const data = await getAdminSettings();
+        setSettings(data);
+      } catch (e) {
+        console.error("Server settings load failed", e);
+        if (typeof window !== "undefined") {
+          const local = localStorage.getItem("kstudy_admin_settings_preview");
+          if (local) {
+            try {
+              setSettings(JSON.parse(local));
+            } catch (err) {}
           }
         }
+      } finally {
+        setLoading(false);
       }
-      setSettings(data);
-      setLoading(false);
     }
     load();
   }, []);

@@ -138,6 +138,7 @@ function NavIcon({ name }: { name: string }) {
     case "profile": return <svg {...common}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
     case "chat": return <svg {...common}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>;
     case "setup": return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+    case "admin": return <svg {...common}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>;
     case "signout": return <svg {...common}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
     default: return null;
   }
@@ -793,31 +794,44 @@ function ChatSidebar({
 
       {/* ── Nav Items ── */}
       <div style={{ padding: collapsed ? "0.25rem 0" : "0.25rem 0.6rem", display: "flex", flexDirection: "column", gap: "0.1rem" }}>
-        {NAV_ITEMS.map((item) => {
-          const isActive = item.href === "/chat";
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={item.label}
-              style={{
-                display: "flex", alignItems: "center", gap: "0.75rem",
-                padding: collapsed ? "0.6rem 0" : "0.55rem 0.75rem",
-                justifyContent: collapsed ? "center" : "flex-start",
-                borderRadius: "0.6rem", textDecoration: "none",
-                color: isActive ? "#f8fafc" : "#94a3b8",
-                background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
-                fontWeight: isActive ? 600 : 400,
-                fontSize: "0.88rem", transition: "all 0.15s",
-              }}
-              onMouseEnter={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "#e2e8f0"; } }}
-              onMouseLeave={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#94a3b8"; } }}
-            >
-              <span style={{ display: "flex", flexShrink: 0 }}><NavIcon name={item.icon} /></span>
-              {!collapsed && <span>{item.label}</span>}
-            </Link>
-          );
-        })}
+        {(() => {
+          const ADMIN_EMAILS = [
+            "skubidooskubi@gmail.com",
+            "vikiflowdesign@gmail.com",
+            "victoruche3022@gmail.com"
+          ];
+          const userEmail = user?.email?.toLowerCase().trim() || "";
+          const isAdmin = userEmail && ADMIN_EMAILS.includes(userEmail);
+          const items = [...NAV_ITEMS];
+          if (isAdmin) {
+            items.push({ href: "/admin", label: "Admin Settings", icon: "admin" });
+          }
+          return items.map((item) => {
+            const isActive = item.href === "/chat";
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.label}
+                style={{
+                  display: "flex", alignItems: "center", gap: "0.75rem",
+                  padding: collapsed ? "0.6rem 0" : "0.55rem 0.75rem",
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  borderRadius: "0.6rem", textDecoration: "none",
+                  color: isActive ? "#f8fafc" : "#94a3b8",
+                  background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                  fontWeight: isActive ? 600 : 400,
+                  fontSize: "0.88rem", transition: "all 0.15s",
+                }}
+                onMouseEnter={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "#e2e8f0"; } }}
+                onMouseLeave={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#94a3b8"; } }}
+              >
+                <span style={{ display: "flex", flexShrink: 0 }}><NavIcon name={item.icon} /></span>
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            );
+          });
+        })()}
       </div>
 
       {/* ── Divider + Recents ── */}
