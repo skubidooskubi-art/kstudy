@@ -192,8 +192,8 @@ body {
 }
 .pricing-card:hover { transform: translateY(-8px); }
 
-/* ── Nav ── */
-nav {
+/* ── Nav (topbar only — scoped so it doesn't affect sidebar nav elements) ── */
+.topnav {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
@@ -309,7 +309,7 @@ nav {
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .sidebar { display: none; }
-  nav { padding: 0.75rem 1rem; }
+  .topnav { padding: 0.75rem 1rem; }
   .section { padding: 4rem 1rem; }
 }
 
@@ -376,7 +376,6 @@ nav {
 .chat-shell {
   display: flex;
   height: 100vh;
-  padding-top: 64px;
   overflow: hidden;
 }
 
@@ -420,7 +419,7 @@ nav {
 /* Backdrop for overlay modes (mobile sidebar, mobile files panel). */
 .chat-overlay-backdrop {
   position: fixed;
-  inset: 64px 0 0 0;
+  inset: 0;
   z-index: 60;
   background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(3px);
@@ -430,7 +429,7 @@ nav {
 @media (max-width: 900px) {
   .chat-files-panel {
     position: fixed;
-    top: 64px;
+    top: 0;
     bottom: 0;
     right: 0;
     width: 400px;
@@ -444,7 +443,7 @@ nav {
   /* Sidebar overlays instead of pushing content. */
   .chat-sidebar {
     position: fixed;
-    top: 64px;
+    top: 0;
     bottom: 0;
     left: 0;
     z-index: 70;

@@ -88,60 +88,17 @@ function sanitizeText(raw: string): string {
   return cleaned;
 }
 
-/* ─── Topbar (UNCHANGED nav) ─────────────────────────────────── */
-function Topbar({ userName }: { userName?: string }) {
-  const router = useRouter();
-  const [isOpen, setIsOpen] = useState(false);
-
-  async function handleSignOut() {
-    await signOut();
-    router.push("/");
+/* ─── Nav icons for sidebar ──────────────────────────────────── */
+function NavIcon({ name }: { name: string }) {
+  const common = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  switch (name) {
+    case "home": return <svg {...common}><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z" /><polyline points="9 21 9 12 15 12 15 21" /></svg>;
+    case "profile": return <svg {...common}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
+    case "chat": return <svg {...common}><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>;
+    case "setup": return <svg {...common}><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+    case "signout": return <svg {...common}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
+    default: return null;
   }
-
-  return (
-    <>
-      {isOpen && (
-        <div onClick={() => setIsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 90, background: "rgba(0,0,0,0.4)" }} />
-      )}
-      <header style={{
-        position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, height: 64,
-        background: "rgba(7,11,20,0.92)", backdropFilter: "blur(16px)",
-        borderBottom: "1px solid var(--border)", padding: "0.75rem 2rem",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-      }}>
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.6rem", textDecoration: "none" }}>
-          <div style={{ width: 32, height: 32, borderRadius: "9px", background: "linear-gradient(135deg, #6C3AE8, #00D4FF)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#fff", fontSize: "0.95rem" }}>K</div>
-          <span style={{ fontWeight: 700, fontSize: "1rem", color: "var(--text-primary)" }}>KStudy</span>
-        </Link>
-        <div className="nav-right" style={{ gap: "1.25rem", display: "flex", alignItems: "center" }}>
-          <Link href="/" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Home</Link>
-          <Link href="/dashboard" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Profile</Link>
-          <Link href="/chat" style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 600 }}>AI Assistant</Link>
-          <Link href="/setup" style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.85rem", fontWeight: 500 }}>Setup Guide</Link>
-          {userName && (
-            <span style={{ fontSize: "0.83rem", color: "var(--text-muted)", borderLeft: "1px solid var(--border)", paddingLeft: "0.85rem" }}>
-              👋 <strong style={{ color: "var(--text-primary)" }}>{userName.split(" ")[0]}</strong>
-            </span>
-          )}
-          <button onClick={handleSignOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.6rem", padding: "0.4rem 0.85rem", color: "var(--text-muted)", fontSize: "0.8rem", cursor: "pointer", fontFamily: "inherit" }}>Sign Out</button>
-        </div>
-        <button onClick={() => setIsOpen(!isOpen)} style={{ display: "none", background: "none", border: "none", color: "var(--text-primary)", cursor: "pointer", padding: "0.25rem" }} className="hamburger-btn">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            {isOpen ? <><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></> : <><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></>}
-          </svg>
-        </button>
-      </header>
-      {isOpen && (
-        <div style={{ position: "fixed", top: 64, left: 0, right: 0, zIndex: 95, background: "rgba(7,11,20,0.98)", borderBottom: "1px solid var(--border)", padding: "1rem 2rem", display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-          <Link href="/" onClick={() => setIsOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.9rem" }}>Home</Link>
-          <Link href="/dashboard" onClick={() => setIsOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.9rem" }}>Profile</Link>
-          <Link href="/chat" onClick={() => setIsOpen(false)} style={{ color: "var(--cyan)", textDecoration: "none", fontSize: "0.9rem", fontWeight: 600 }}>AI Assistant</Link>
-          <Link href="/setup" onClick={() => setIsOpen(false)} style={{ color: "var(--text-secondary)", textDecoration: "none", fontSize: "0.9rem" }}>Setup Guide</Link>
-          <button onClick={handleSignOut} style={{ background: "none", border: "1px solid var(--border)", borderRadius: "0.6rem", padding: "0.5rem 0.85rem", color: "var(--text-muted)", fontSize: "0.85rem", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>Sign Out</button>
-        </div>
-      )}
-    </>
-  );
 }
 
 /* ─── Format Bytes ────────────────────────────────────────────── */
@@ -467,9 +424,16 @@ function MessageProgress({ label }: { label: string }) {
 }
 
 /* ─── Chat Sidebar ────────────────────────────────────────────── */
+const NAV_ITEMS = [
+  { href: "/",          label: "Home",         icon: "home"    },
+  { href: "/dashboard", label: "Profile",      icon: "profile" },
+  { href: "/chat",      label: "AI Assistant", icon: "chat"    },
+  { href: "/setup",     label: "Setup Guide",  icon: "setup"   },
+];
+
 function ChatSidebar({
   collapsed, onToggle, sessions, activeSid, loading,
-  onNewChat, onSwitch, busy,
+  onNewChat, onSwitch, busy, user, onSignOut,
 }: {
   collapsed: boolean;
   onToggle: () => void;
@@ -479,23 +443,33 @@ function ChatSidebar({
   onNewChat: () => void;
   onSwitch: (sid: string) => void;
   busy: boolean;
+  user?: { name?: string | null; email?: string | null } | null;
+  onSignOut: () => void;
 }) {
   return (
     <aside className={`chat-sidebar${collapsed ? " collapsed" : ""}`}>
-      {/* Header: toggle + (expanded) label */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", padding: collapsed ? "0.85rem 0" : "0.85rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-        {!collapsed && <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "#94a3b8", letterSpacing: "0.03em", textTransform: "uppercase" }}>Chats</span>}
+
+      {/* ── Logo + Collapse Toggle ── */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", padding: collapsed ? "1rem 0" : "1rem 1rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        {!collapsed && (
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: "0.55rem", textDecoration: "none" }}>
+            <div style={{ width: 28, height: 28, borderRadius: "8px", background: "linear-gradient(135deg, #6C3AE8, #00D4FF)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#fff", fontSize: "0.85rem", flexShrink: 0 }}>K</div>
+            <span style={{ fontWeight: 700, fontSize: "1rem", color: "#f8fafc" }}>KStudy</span>
+          </Link>
+        )}
         <button
           onClick={onToggle}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          style={{ background: "none", border: "none", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", padding: "0.25rem" }}
+          style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", alignItems: "center", padding: "0.2rem", borderRadius: "0.4rem", transition: "color 0.15s" }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "#e2e8f0")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "#64748b")}
         >
           <Icon name="sidebar" size={20} />
         </button>
       </div>
 
-      {/* New Chat */}
-      <div style={{ padding: collapsed ? "0.6rem 0" : "0.75rem", display: "flex", justifyContent: "center" }}>
+      {/* ── New Chat Button ── */}
+      <div style={{ padding: collapsed ? "0.75rem 0" : "0.75rem", display: "flex", justifyContent: "center" }}>
         <button
           onClick={onNewChat}
           disabled={busy}
@@ -503,25 +477,65 @@ function ChatSidebar({
           style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
             width: collapsed ? 38 : "100%", height: 38,
-            background: "linear-gradient(135deg, #6C3AE8, #00D4FF)", border: "none",
-            borderRadius: "0.65rem", color: "#fff", fontWeight: 600, fontSize: "0.85rem",
-            cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1, transition: "opacity 0.2s",
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: "0.65rem", color: "#e2e8f0", fontWeight: 600, fontSize: "0.85rem",
+            cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.5 : 1, transition: "all 0.2s",
           }}
+          onMouseEnter={(e) => { if (!busy) { e.currentTarget.style.background = "rgba(255,255,255,0.1)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.18)"; } }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
         >
           <Icon name="plus" size={18} />
-          {!collapsed && <span>New Chat</span>}
+          {!collapsed && <span>New chat</span>}
         </button>
       </div>
 
-      {/* History list (hidden when collapsed) */}
+      {/* ── Nav Items ── */}
+      <div style={{ padding: collapsed ? "0.25rem 0" : "0.25rem 0.6rem", display: "flex", flexDirection: "column", gap: "0.1rem" }}>
+        {NAV_ITEMS.map((item) => {
+          const isActive = item.href === "/chat";
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              title={item.label}
+              style={{
+                display: "flex", alignItems: "center", gap: "0.75rem",
+                padding: collapsed ? "0.6rem 0" : "0.55rem 0.75rem",
+                justifyContent: collapsed ? "center" : "flex-start",
+                borderRadius: "0.6rem", textDecoration: "none",
+                color: isActive ? "#f8fafc" : "#94a3b8",
+                background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                fontWeight: isActive ? 600 : 400,
+                fontSize: "0.88rem", transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLElement).style.color = "#e2e8f0"; } }}
+              onMouseLeave={(e) => { if (!isActive) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#94a3b8"; } }}
+            >
+              <span style={{ display: "flex", flexShrink: 0 }}><NavIcon name={item.icon} /></span>
+              {!collapsed && <span>{item.label}</span>}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* ── Divider + Recents ── */}
+      <div style={{ margin: collapsed ? "0.5rem 0" : "0.5rem 0.6rem", borderTop: "1px solid rgba(255,255,255,0.06)" }} />
+
       {!collapsed && (
-        <div style={{ flex: 1, overflowY: "auto", padding: "0.25rem 0.6rem 0.75rem" }}>
+        <div style={{ padding: "0 0.75rem 0.35rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#475569", letterSpacing: "0.05em", textTransform: "uppercase" }}>Recents</span>
+        </div>
+      )}
+
+      {/* ── History list ── */}
+      {!collapsed ? (
+        <div style={{ flex: 1, overflowY: "auto", padding: "0 0.6rem 0.75rem" }}>
           {loading ? (
             <div style={{ padding: "1.5rem 0.5rem", textAlign: "center", color: "#64748b", fontSize: "0.82rem" }}>Loading…</div>
           ) : sessions.length === 0 ? (
             <div style={{ padding: "1.5rem 0.5rem", textAlign: "center", color: "#64748b", fontSize: "0.82rem" }}>No conversations yet.</div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.3rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.1rem" }}>
               {sessions.map((item) => {
                 const isActive = item.session_id === activeSid;
                 return (
@@ -530,19 +544,16 @@ function ChatSidebar({
                     onClick={() => onSwitch(item.session_id)}
                     title={item.title || "Untitled Conversation"}
                     style={{
-                      textAlign: "left", padding: "0.6rem 0.7rem", borderRadius: "0.6rem",
-                      background: isActive ? "rgba(99, 102, 241, 0.18)" : "transparent",
-                      border: isActive ? "1px solid rgba(99, 102, 241, 0.45)" : "1px solid transparent",
+                      textAlign: "left", padding: "0.5rem 0.75rem", borderRadius: "0.5rem",
+                      background: isActive ? "rgba(255,255,255,0.08)" : "transparent",
+                      border: "none",
                       cursor: isActive ? "default" : "pointer", transition: "all 0.15s", width: "100%",
                     }}
                     onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "rgba(255,255,255,0.05)"; }}
                     onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                   >
-                    <div style={{ fontWeight: 500, fontSize: "0.84rem", color: isActive ? "#a5b4fc" : "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                    <div style={{ fontWeight: isActive ? 600 : 400, fontSize: "0.84rem", color: isActive ? "#f8fafc" : "#94a3b8", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {item.title || "Untitled Conversation"}
-                    </div>
-                    <div style={{ fontSize: "0.7rem", color: "#64748b", marginTop: "0.15rem" }}>
-                      {item.message_count ? `${item.message_count} messages` : "New"}
                     </div>
                   </button>
                 );
@@ -550,7 +561,43 @@ function ChatSidebar({
             </div>
           )}
         </div>
+      ) : (
+        <div style={{ flex: 1 }} />
       )}
+
+      {/* ── User Avatar at Bottom ── */}
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: collapsed ? "0.75rem 0" : "0.75rem 0.85rem", display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: collapsed ? "center" : "flex-start" }}>
+        {/* Avatar circle */}
+        <div
+          title={user?.name || user?.email || "User"}
+          style={{
+            width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+            background: "linear-gradient(135deg, #6C3AE8, #00D4FF)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 700, fontSize: "0.85rem", color: "#fff", cursor: "default",
+          }}
+        >
+          {(user?.name || user?.email || "U").charAt(0).toUpperCase()}
+        </div>
+        {!collapsed && (
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: "0.83rem", fontWeight: 600, color: "#e2e8f0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user?.name || user?.email || "Student User"}
+            </div>
+          </div>
+        )}
+        {!collapsed && (
+          <button
+            onClick={onSignOut}
+            title="Sign out"
+            style={{ background: "none", border: "none", color: "#64748b", cursor: "pointer", display: "flex", padding: "0.2rem", borderRadius: "0.35rem", transition: "color 0.15s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "#f87171")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "#64748b")}
+          >
+            <NavIcon name="signout" />
+          </button>
+        )}
+      </div>
     </aside>
   );
 }
@@ -747,6 +794,7 @@ function FilesPanel({ artifacts, onClose, initialPreview }: {
 /* ─── Main Hermes Custom Chat Page ────────────────────────────── */
 export default function HermesChatPage() {
   const { data: session, isPending } = useSession();
+  const router = useRouter();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState("");
@@ -771,9 +819,18 @@ export default function HermesChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
   const hasInitializedRef = useRef(false);
   const autoTitledRef = useRef(false);
+
+  // Auto-resize textarea: grow with content up to 20 lines, then scroll.
+  const MAX_TEXTAREA_HEIGHT = 20 * 1.6 * 14.88; // 20 lines × lineHeight 1.6 × 0.93rem≈14.88px ≈ 476px
+  const autoResize = useCallback((el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, MAX_TEXTAREA_HEIGHT) + "px";
+    el.style.overflowY = el.scrollHeight > MAX_TEXTAREA_HEIGHT ? "auto" : "hidden";
+  }, [MAX_TEXTAREA_HEIGHT]);
 
   const user = session?.user;
 
@@ -1090,6 +1147,11 @@ export default function HermesChatPage() {
 
     setInputText("");
     setStagedFiles([]);
+    // Reset textarea height back to one line
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.overflowY = "hidden";
+    }
 
     const uploadedAttachments: Attachment[] = [];
 
@@ -1381,9 +1443,13 @@ export default function HermesChatPage() {
   const mobile = typeof window !== "undefined" && window.innerWidth <= 768;
   const sidebarVisiblyCollapsed = mobile ? !mobileSidebarOpen : sidebarCollapsed;
 
+  async function handleSignOut() {
+    await signOut();
+    router.push("/");
+  }
+
   return (
     <div style={{ background: "#070b14", color: "var(--text-primary)", fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" }}>
-      <Topbar userName={user?.name} />
 
       <div className="chat-shell">
         {/* Mobile backdrop for sidebar */}
@@ -1401,17 +1467,19 @@ export default function HermesChatPage() {
           onNewChat={handleNewConversation}
           onSwitch={handleSwitchSession}
           busy={isStreaming || isUploading}
+          user={user}
+          onSignOut={handleSignOut}
         />
 
         {/* ── Main Chat Column ── */}
         <main className="chat-main">
-          {/* Chat header: title (left) · status/user + files (right) */}
+          {/* Chat header: title (left) · files (right) */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem",
-            padding: "0.75rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.08)",
-            background: "rgba(15, 23, 42, 0.55)", backdropFilter: "blur(12px)",
+            padding: "0.65rem 1.25rem", borderBottom: "1px solid rgba(255,255,255,0.07)",
+            background: "rgba(7, 11, 20, 0.8)", backdropFilter: "blur(12px)",
           }}>
-            {/* Left: sidebar toggle (mobile) + editable title */}
+            {/* Left: mobile sidebar toggle + editable title */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", minWidth: 0, flex: 1 }}>
               <button
                 className="chat-sidebar-toggle-mobile"
@@ -1420,18 +1488,15 @@ export default function HermesChatPage() {
                 aria-label="Toggle chat history sidebar"
                 style={{
                   display: "none", alignItems: "center", justifyContent: "center",
-                  width: 36, height: 36, flexShrink: 0,
-                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: "0.6rem", color: "#e2e8f0", cursor: "pointer",
+                  width: 34, height: 34, flexShrink: 0,
+                  background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: "0.5rem", color: "#e2e8f0", cursor: "pointer",
                 }}
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" />
                 </svg>
               </button>
-              <div style={{ width: 34, height: 34, borderRadius: "9px", background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: "1rem", flexShrink: 0 }}>
-                🤖
-              </div>
               <ChatTitle
                 title={chatTitle}
                 saving={titleSaving}
@@ -1439,23 +1504,15 @@ export default function HermesChatPage() {
               />
             </div>
 
-            {/* Right: connected badge + user + Files toggle */}
+            {/* Right: Files toggle only */}
             <div style={{ display: "flex", alignItems: "center", gap: "0.6rem", flexShrink: 0 }}>
-              <div className="chat-header-meta" style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", background: "rgba(16, 185, 129, 0.15)", color: "#10b981", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "20px", padding: "0.15rem 0.55rem", fontSize: "0.72rem", fontWeight: 600 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} /> Connected
-                </span>
-                <span style={{ fontSize: "0.78rem", color: "#94a3b8", whiteSpace: "nowrap", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {user?.name || "Student User"}
-                </span>
-              </div>
               <button
                 onClick={() => setFilesOpen((v) => !v)}
                 title="Files in this conversation"
                 style={{
                   display: "flex", alignItems: "center", gap: "0.4rem",
-                  background: filesOpen ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.06)",
-                  border: filesOpen ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(255,255,255,0.12)",
+                  background: filesOpen ? "rgba(99,102,241,0.2)" : "rgba(255,255,255,0.05)",
+                  border: filesOpen ? "1px solid rgba(99,102,241,0.4)" : "1px solid rgba(255,255,255,0.1)",
                   borderRadius: "0.6rem", padding: "0.4rem 0.75rem", color: "#f1f5f9",
                   fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
                 }}
@@ -1476,10 +1533,10 @@ export default function HermesChatPage() {
 
           {/* Messages Scroll Area */}
           <div style={{
-            flex: 1, overflowY: "auto", padding: "1.25rem",
+            flex: 1, overflowY: "auto", padding: "1.5rem 1.5rem 0.5rem",
             display: "flex", flexDirection: "column", gap: "1.25rem",
           }}>
-            <div style={{ width: "100%", maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.25rem", flex: 1 }}>
+            <div style={{ width: "100%", maxWidth: 900, margin: "0 auto", display: "flex", flexDirection: "column", gap: "1.25rem", flex: 1 }}>
               {messages.length === 0 ? (
                 <div style={{
                   margin: "auto", textAlign: "center", maxWidth: "480px",
@@ -1519,10 +1576,12 @@ export default function HermesChatPage() {
                       style={{
                         display: "flex", flexDirection: "column",
                         alignItems: isUser ? "flex-end" : "flex-start",
-                        maxWidth: "85%", alignSelf: isUser ? "flex-end" : "flex-start",
+                        maxWidth: isUser ? "80%" : "100%",
+                        alignSelf: isUser ? "flex-end" : "flex-start",
+                        width: isUser ? undefined : "100%",
                       }}
                     >
-                      <div style={{ fontSize: "0.75rem", color: "#64748b", marginBottom: "0.25rem", paddingLeft: "0.2rem", paddingRight: "0.2rem" }}>
+                      <div style={{ fontSize: "0.72rem", color: "#475569", marginBottom: "0.3rem", paddingLeft: isUser ? 0 : "0.1rem", paddingRight: isUser ? "0.1rem" : 0 }}>
                         {isUser ? user?.name || "You" : "Hermes AI Assistant"}
                       </div>
 
@@ -1530,10 +1589,12 @@ export default function HermesChatPage() {
                         style={{
                           background: isUser
                             ? "linear-gradient(135deg, #4f46e5, #3b82f6)"
-                            : "rgba(15, 23, 42, 0.9)",
-                          border: isUser ? "none" : "1px solid rgba(255,255,255,0.1)",
-                          borderRadius: isUser ? "1.2rem 1.2rem 0.2rem 1.2rem" : "1.2rem 1.2rem 1.2rem 0.2rem",
-                          padding: "0.85rem 1.15rem", color: "#f8fafc", boxShadow: "0 4px 15px rgba(0,0,0,0.2)",
+                            : "transparent",
+                          border: "none",
+                          borderRadius: isUser ? "1.2rem 1.2rem 0.2rem 1.2rem" : "0",
+                          padding: isUser ? "0.85rem 1.15rem" : "0",
+                          color: "#f8fafc",
+                          boxShadow: isUser ? "0 4px 15px rgba(0,0,0,0.2)" : "none",
                           maxWidth: "100%", minWidth: 0,
                         }}
                       >
@@ -1591,22 +1652,30 @@ export default function HermesChatPage() {
           </div>
 
           {/* Composer Bar */}
-          <div style={{ padding: "0 1.25rem 1rem" }}>
-            <div style={{
-              maxWidth: 820, margin: "0 auto",
-              background: "rgba(15, 23, 42, 0.95)", border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "1.25rem", padding: "0.85rem", backdropFilter: "blur(16px)",
-              boxShadow: "0 10px 30px rgba(0,0,0,0.5)",
-            }}>
+          <div style={{ padding: "0.75rem 1.5rem 1.25rem" }}>
+            <div
+              className="chat-composer"
+              style={{
+                maxWidth: 900, margin: "0 auto",
+                background: "rgba(15, 23, 42, 0.85)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: "1.5rem", padding: "0.6rem 0.6rem 0.6rem 1rem",
+                backdropFilter: "blur(20px)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.4)",
+                transition: "border-color 0.2s, box-shadow 0.2s",
+              }}
+            >
               {/* Staged File Tray */}
               {stagedFiles.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.6rem", paddingBottom: "0.6rem", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.5rem", paddingBottom: "0.5rem", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
                   {stagedFiles.map((f, idx) => (
-                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: "0.4rem", background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.3)", borderRadius: "0.6rem", padding: "0.3rem 0.65rem", fontSize: "0.78rem", color: "#93c5fd" }}>
-                      <span>📎</span>
+                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: "0.35rem", background: "rgba(108,58,232,0.15)", border: "1px solid rgba(108,58,232,0.3)", borderRadius: "0.5rem", padding: "0.25rem 0.55rem", fontSize: "0.76rem", color: "#a5b4fc" }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                       <span style={{ fontWeight: 600 }}>{f.name}</span>
-                      <span style={{ color: "#60a5fa" }}>({formatBytes(f.size)})</span>
-                      <button onClick={() => removeStagedFile(idx)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", padding: "0 0.2rem", marginLeft: "0.2rem", fontSize: "0.9rem" }}>×</button>
+                      <span style={{ color: "#7c93d4", fontSize: "0.7rem" }}>({formatBytes(f.size)})</span>
+                      <button onClick={() => removeStagedFile(idx)} style={{ background: "none", border: "none", color: "#f87171", cursor: "pointer", padding: "0 0.15rem", marginLeft: "0.1rem", display: "flex", alignItems: "center" }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -1622,75 +1691,111 @@ export default function HermesChatPage() {
                 style={{ display: "none" }}
               />
 
-              <div style={{ display: "flex", alignItems: "flex-end", gap: "0.6rem" }}>
-                {/* File Upload Trigger Button */}
+              <div style={{ display: "flex", alignItems: "flex-end", gap: "0.5rem" }}>
+                {/* File Upload Button — plus icon */}
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   disabled={isStreaming || isUploading}
-                  title="Upload file or document"
+                  title="Attach file or document"
                   style={{
-                    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)",
-                    borderRadius: "0.75rem", width: 42, height: 42, display: "flex",
-                    alignItems: "center", justifyContent: "center", color: "#94a3b8",
-                    cursor: isStreaming ? "not-allowed" : "pointer", fontSize: "1.2rem",
-                    transition: "all 0.2s", flexShrink: 0
+                    background: "rgba(255,255,255,0.05)",
+                    border: "1px solid rgba(255,255,255,0.09)",
+                    borderRadius: "0.85rem", width: 40, height: 40,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    color: isStreaming || isUploading ? "#334155" : "#64748b",
+                    cursor: isStreaming || isUploading ? "not-allowed" : "pointer",
+                    transition: "all 0.2s", flexShrink: 0,
                   }}
+                  onMouseEnter={(e) => { if (!isStreaming && !isUploading) { e.currentTarget.style.background = "rgba(108,58,232,0.18)"; e.currentTarget.style.borderColor = "rgba(108,58,232,0.4)"; e.currentTarget.style.color = "#a5b4fc"; } }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.05)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.09)"; e.currentTarget.style.color = isStreaming || isUploading ? "#334155" : "#64748b"; }}
                 >
-                  📎
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
                 </button>
 
                 {/* Input Textarea */}
                 <textarea
+                  ref={textareaRef}
                   value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
+                  onChange={(e) => {
+                    setInputText(e.target.value);
+                    autoResize(e.target);
+                  }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       handleSendMessage();
                     }
                   }}
-                  placeholder="Type your message to Hermes... (Shift+Enter for new line)"
+                  onFocus={(e) => {
+                    const p = e.currentTarget.closest(".chat-composer") as HTMLElement | null;
+                    if (p) { p.style.borderColor = "rgba(108,58,232,0.5)"; p.style.boxShadow = "0 8px 32px rgba(0,0,0,0.4), 0 0 0 3px rgba(108,58,232,0.12)"; }
+                  }}
+                  onBlur={(e) => {
+                    const p = e.currentTarget.closest(".chat-composer") as HTMLElement | null;
+                    if (p) { p.style.borderColor = "rgba(255,255,255,0.1)"; p.style.boxShadow = "0 8px 32px rgba(0,0,0,0.4)"; }
+                  }}
+                  placeholder="Message Hermes…"
                   rows={1}
                   style={{
                     flex: 1, background: "none", border: "none", outline: "none",
-                    color: "#f8fafc", fontSize: "0.92rem", fontFamily: "inherit",
-                    resize: "none", maxHeight: "120px", minHeight: "24px", lineHeight: 1.5,
+                    color: "#f1f5f9", fontSize: "0.93rem", fontFamily: "inherit",
+                    resize: "none", overflowY: "hidden",
+                    minHeight: "28px",
+                    lineHeight: 1.6, padding: "0.3rem 0",
+                    caretColor: "#8B5CF6",
                   }}
                 />
 
-                {/* Action Button (Send / Stop) */}
+                {/* Send / Stop Button */}
                 {isStreaming ? (
                   <button
                     onClick={handleStopStream}
                     title="Stop response"
                     style={{
-                      background: "#ef4444", border: "none", borderRadius: "0.75rem",
-                      padding: "0.55rem 1rem", color: "#fff", fontWeight: 600,
-                      fontSize: "0.85rem", cursor: "pointer", flexShrink: 0,
-                      display: "flex", alignItems: "center", gap: "0.35rem"
+                      background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)",
+                      borderRadius: "0.85rem", width: 40, height: 40,
+                      color: "#f87171", cursor: "pointer", flexShrink: 0,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      transition: "all 0.2s",
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.22)"; e.currentTarget.style.borderColor = "rgba(239,68,68,0.55)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.12)"; e.currentTarget.style.borderColor = "rgba(239,68,68,0.3)"; }}
                   >
-                    ⏹️ Stop
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
                   </button>
                 ) : (
                   <button
                     onClick={handleSendMessage}
                     disabled={(!inputText.trim() && stagedFiles.length === 0) || isUploading}
+                    title="Send message"
                     style={{
                       background: (!inputText.trim() && stagedFiles.length === 0) || isUploading
-                        ? "rgba(255,255,255,0.08)"
-                        : "linear-gradient(135deg, #6C3AE8, #00D4FF)",
-                      border: "none", borderRadius: "0.75rem", padding: "0.55rem 1.15rem",
-                      color: "#fff", fontWeight: 600, fontSize: "0.88rem",
+                        ? "rgba(255,255,255,0.06)"
+                        : "linear-gradient(135deg, #6C3AE8, #3b82f6)",
+                      border: "none", borderRadius: "0.85rem",
+                      width: 40, height: 40,
+                      color: (!inputText.trim() && stagedFiles.length === 0) || isUploading ? "#334155" : "#fff",
                       cursor: (!inputText.trim() && stagedFiles.length === 0) || isUploading ? "not-allowed" : "pointer",
+                      display: "flex", alignItems: "center", justifyContent: "center",
                       transition: "all 0.2s", flexShrink: 0,
+                      boxShadow: (!inputText.trim() && stagedFiles.length === 0) || isUploading ? "none" : "0 4px 14px rgba(108,58,232,0.4)",
                     }}
+                    onMouseEnter={(e) => { if (!(!inputText.trim() && stagedFiles.length === 0) && !isUploading) e.currentTarget.style.opacity = "0.85"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
                   >
-                    {isUploading ? "Uploading..." : "Send"}
+                    {isUploading
+                      ? <span style={{ width: 13, height: 13, border: "2px solid #334155", borderTopColor: "transparent", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+                      : <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+                    }
                   </button>
                 )}
               </div>
             </div>
+            <p style={{ textAlign: "center", marginTop: "0.45rem", fontSize: "0.68rem", color: "#1e293b", letterSpacing: "0.01em" }}>
+              Shift+Enter for new line
+            </p>
           </div>
         </main>
 
