@@ -343,6 +343,47 @@ body {
   }
 }
 
+/* ── Profile/Dashboard Mobile Responsive Styles ── */
+@media (max-width: 500px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+  .billing-table th, 
+  .billing-table td {
+    padding: 0.5rem 0.25rem !important;
+    font-size: 0.78rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-header-container {
+    flex-direction: column !important;
+    text-align: center !important;
+    align-items: center !important;
+    gap: 0.75rem !important;
+  }
+  .usage-stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+  .usage-stats-grid > div {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.06) !important;
+    padding-bottom: 0.4rem !important;
+    text-align: left !important;
+  }
+  .usage-stats-grid > div:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+  .usage-stats-grid > div > div:first-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+
 .hamburger-btn {
   display: none !important;
 }

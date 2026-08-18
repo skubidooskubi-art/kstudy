@@ -64,7 +64,7 @@ function Topbar({ userName }: { userName?: string }) {
       <header style={{
         position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
         background: "rgba(7,11,20,0.85)", backdropFilter: "blur(16px)",
-        borderBottom: "1px solid var(--border)", padding: "0.85rem 2rem",
+        borderBottom: "1px solid var(--border)", padding: "0.85rem clamp(0.75rem, 4vw, 2rem)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         transform: visible ? "translateY(0)" : "translateY(-100%)",
         transition: "transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s",
@@ -136,7 +136,7 @@ function UsageCard({ usage }: { usage: UsageData | null }) {
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
+      <div className="usage-stats-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "1rem" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: "clamp(0.6rem, 2.5vw, 0.7rem)", color: "var(--text-muted)", marginBottom: "0.25rem", textTransform: "uppercase", letterSpacing: "0.05em" }}>Used</div>
           <div style={{ fontSize: "clamp(1rem, 4vw, 1.2rem)", fontWeight: 800, color: "var(--text-primary)" }}>${usage.used_this_month_usd.toFixed(2)}</div>
@@ -237,7 +237,7 @@ export default function DashboardPage() {
             
             {/* Profile Info */}
             <div className="glass" style={{ padding: "clamp(1rem, 4vw, 1.75rem)", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+              <div className="profile-header-container" style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
                 {user?.image ? (
                   <img src={user.image} alt={user.name} style={{ width: 56, height: 56, borderRadius: "50%", border: "2px solid var(--violet)" }} />
                 ) : (
@@ -370,12 +370,12 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div style={{ overflowX: "auto" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 460 }}>
+                  <table className="billing-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                     <thead>
                       <tr style={{ borderBottom: "1px solid var(--border)", textAlign: "left" }}>
                         <th style={{ padding: "0.75rem 0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>DATE</th>
                         <th style={{ padding: "0.75rem 0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>PLAN</th>
-                        <th style={{ padding: "0.75rem 0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>REFERENCE</th>
+                        <th className="hide-on-mobile" style={{ padding: "0.75rem 0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>REFERENCE</th>
                         <th style={{ padding: "0.75rem 0.5rem", fontSize: "0.75rem", color: "var(--text-muted)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "right" }}>AMOUNT</th>
                       </tr>
                     </thead>
@@ -388,7 +388,7 @@ export default function DashboardPage() {
                           <td style={{ padding: "0.85rem 0.5rem" }}>
                             <span className="badge badge-violet" style={{ fontSize: "0.7rem", padding: "0.15rem 0.45rem" }}>{tx.plan}</span>
                           </td>
-                          <td style={{ padding: "0.85rem 0.5rem", fontFamily: "var(--font-geist-mono), monospace", color: "var(--text-muted)" }}>
+                          <td className="hide-on-mobile" style={{ padding: "0.85rem 0.5rem", fontFamily: "var(--font-geist-mono), monospace", color: "var(--text-muted)" }}>
                             {tx.reference.substring(0, 12)}...
                           </td>
                           <td style={{ padding: "0.85rem 0.5rem", textAlign: "right", fontWeight: 700, color: "var(--text-primary)" }}>
