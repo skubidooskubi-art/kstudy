@@ -107,6 +107,11 @@ export async function getProfileCookie(req: NextRequest): Promise<string> {
 
   const client = await clientPromise;
   const user = await client.db("kstudy").collection("user").findOne({ email: session.user.email });
-  const profileName = user?.profile_name || "default";
+  // Route to the user's own isolated profile once provisioned. Until then we
+  // fall back to the shared, fully-scrubbed trial profile — NEVER "default",
+  // which is the OWNER/admin profile (real API keys, MCP servers, private
+  // skills). Routing an unprovisioned customer to "default" would leak the
+  // owner's tools/credentials and break tenant isolation.
+  const profileName = user?.profile_name || "kstudy_free";
   return `hermes_profile=${profileName}`;
 }

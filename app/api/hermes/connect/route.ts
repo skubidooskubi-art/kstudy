@@ -71,21 +71,33 @@ export async function POST(req: NextRequest) {
     // ── Call Hermes Provision API to create the profile and start the bot ──
     let provisionResult: { ok: boolean; profile?: string; bot_username?: string; error?: string } = { ok: false, error: "not attempted" };
 
+    // If the user already has an isolated profile (e.g. a web-only profile
+    // created on first web chat), ATTACH the bot to that same profile so their
+    // existing chat history / workspace is preserved. Otherwise, provision a
+    // fresh profile with the bot in one shot.
+    const existingProfile = typeof user.profile_name === "string" && user.profile_name
+      ? user.profile_name
+      : "";
+    const provisionUrl = existingProfile
+      ? PROVISION_API_URL.replace(/\/provision$/, "/attach_bot")
+      : PROVISION_API_URL;
+    const customerId = existingProfile || `cust_${String(user._id)}`;
+
     if (PROVISION_API_SECRET) {
       try {
-        const provRes = await fetch(PROVISION_API_URL, {
+        const provRes = await fetch(provisionUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${PROVISION_API_SECRET}`,
           },
           body: JSON.stringify({
-            customer_id: `cust_${String(user._id)}`,
+            customer_id: customerId,
             bot_token:   token.trim(),
             tg_user_id:  user.telegramChatId || "",
             email:       user.email,
           }),
-          signal: AbortSignal.timeout(30000), // 30s timeout
+          signal: AbortSignal.timeout(45000), // 45s timeout (gateway start + bot check)
         });
 
         provisionResult = await provRes.json();
@@ -97,7 +109,7 @@ export async function POST(req: NextRequest) {
             {
               $set: {
                 status:              "active",
-                profile_name:        provisionResult.profile || "",
+                profile_name:        provisionResult.profile || existingProfile || "",
                 provisioned_at:      new Date(),
                 monthly_budget_usd:  user.monthly_budget_usd ?? 1.50,
                 used_this_month_usd: user.used_this_month_usd ?? 0,

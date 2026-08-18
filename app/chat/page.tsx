@@ -1274,6 +1274,19 @@ export default function HermesChatPage() {
   const initSession = useCallback(async () => {
     try {
       setStatusMessage("Connecting to Hermes AI Assistant...");
+
+      // Ensure the user has their own isolated profile BEFORE we create/load a
+      // session. getProfileCookie() reads user.profile_name per-request, so this
+      // must persist (or confirm) the profile first — otherwise the session
+      // would be created under the shared trial profile and then orphaned when
+      // the cookie flips to the user's cust_ profile. Fail-soft: on any error
+      // we proceed on the trial profile so chat still works.
+      try {
+        await fetch("/api/hermes/ensure-profile", { method: "POST" });
+      } catch {
+        /* non-fatal — fall back to the shared trial profile */
+      }
+
       const savedSid = typeof window !== "undefined" ? localStorage.getItem("kstudy_chat_sid") : null;
 
       if (savedSid) {
