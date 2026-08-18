@@ -88,6 +88,41 @@ function sanitizeText(raw: string): string {
   return cleaned;
 }
 
+/* ─── Split Thinking Steps from Response ──────────────────────── */
+function splitThinkingAndResponse(content: string): { thinking: string; response: string } {
+  if (!content) return { thinking: "", response: "" };
+
+  const paragraphs = content.split(/\n\n+/);
+  const thinkingParagraphs: string[] = [];
+  let responseIndex = 0;
+
+  for (let i = 0; i < paragraphs.length; i++) {
+    const p = paragraphs[i].trim();
+    if (!p) continue;
+
+    // A paragraph is a thinking header if it starts with one of the standard progress action verbs and is short (<= 5 words).
+    const isThinkingHeader = /^(Exploring|Searching|Checking|Inspecting|Investigating|Gathering|Extracting|Conducting|Listing|Synthesizing|Analyzing|Refining|Verifying)\b/i.test(p) && p.split(/\s+/).length <= 5;
+    
+    // A paragraph is a thinking action if it starts with a standard active progress phrasing.
+    const isThinkingAction = /^(I'm currently|I am currently|I'm now focusing|I'm now about to|I am about to|I am checking|I'm checking|My next step|My focus is|My analysis indicates|I've compiled|I am now reading|I am reading|I am verifying|I'm verifying)\b/i.test(p);
+
+    if (isThinkingHeader || isThinkingAction) {
+      thinkingParagraphs.push(p);
+      responseIndex = i + 1;
+    } else {
+      break;
+    }
+  }
+
+  const thinkingText = thinkingParagraphs.join("\n\n");
+  const responseText = paragraphs.slice(responseIndex).join("\n\n");
+
+  return {
+    thinking: thinkingText,
+    response: responseText
+  };
+}
+
 /* ─── Nav icons for sidebar ──────────────────────────────────── */
 function NavIcon({ name }: { name: string }) {
   const common = { width: 18, height: 18, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -1828,15 +1863,31 @@ export default function HermesChatPage() {
                 messages.map((msg, index) => {
                   const isUser = msg.role === "user";
                   const cleanContent = sanitizeText(msg.content);
-                  const hasReasoning = !!(msg.reasoning && msg.reasoning.trim());
+                  
+                  let displayContent = cleanContent;
+                  let displayReasoning = msg.reasoning || "";
+
+                  if (!isUser && cleanContent) {
+                    const split = splitThinkingAndResponse(cleanContent);
+                    if (split.thinking) {
+                      displayContent = split.response;
+                      displayReasoning = displayReasoning
+                        ? displayReasoning + "\n\n" + split.thinking
+                        : split.thinking;
+                    }
+                  }
+
+                  const hasReasoning = !!(displayReasoning && displayReasoning.trim());
+                  const isReasoningActive = !!msg.reasoningActive || (!!msg.isStreaming && !displayContent);
+                  
                   const msgSources = msg.toolEvents && msg.toolEvents.length
                     ? extractSources(msg.toolEvents as ToolEventLike[])
                     : [];
-                  const showProgress = !!msg.isStreaming && !cleanContent && !!msg.progressLabel;
-                  const showThinkingSpinner = !!msg.isStreaming && !cleanContent && !msg.progressLabel && !hasReasoning;
+                  const showProgress = !!msg.isStreaming && !displayContent && !!msg.progressLabel;
+                  const showThinkingSpinner = !!msg.isStreaming && !displayContent && !msg.progressLabel && !hasReasoning;
 
                   if (
-                    !cleanContent && !msg.attachments?.length && !msg.isStreaming &&
+                    !displayContent && !msg.attachments?.length && !msg.isStreaming &&
                     !hasReasoning && !(msg.toolEvents && msg.toolEvents.length)
                   ) {
                     return null; // Skip empty system/tool frames
@@ -1886,7 +1937,7 @@ export default function HermesChatPage() {
 
                         {/* Reasoning ("thinking") — collapsible, above the answer */}
                         {!isUser && hasReasoning && (
-                          <ReasoningBlock text={msg.reasoning as string} active={!!msg.reasoningActive} />
+                          <ReasoningBlock text={displayReasoning} active={isReasoningActive} />
                         )}
 
                         {/* Web sources consulted (separate from reasoning) */}
@@ -1895,8 +1946,8 @@ export default function HermesChatPage() {
                         )}
 
                         {/* Message Body */}
-                        {cleanContent ? (
-                          <FormattedMessage text={cleanContent} onOpenFile={openFileByPath} />
+                        {displayContent ? (
+                          <FormattedMessage text={displayContent} onOpenFile={openFileByPath} />
                         ) : showProgress ? (
                           <MessageProgress label={msg.progressLabel as string} />
                         ) : showThinkingSpinner ? (
@@ -1908,12 +1959,12 @@ export default function HermesChatPage() {
                       </div>
 
                       {/* Per-message copy button (hover on desktop, always on mobile) */}
-                      {cleanContent && (
+                      {displayContent && (
                         <div
                           className="chat-msg-actions"
                           style={{ display: "flex", justifyContent: isUser ? "flex-end" : "flex-start", paddingTop: "0.3rem", height: 24 }}
                         >
-                          <CopyButton text={cleanContent} subtle />
+                          <CopyButton text={displayContent} subtle />
                         </div>
                       )}
                     </div>
