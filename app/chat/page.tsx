@@ -1653,7 +1653,17 @@ export default function HermesChatPage() {
           });
           return;
         }
-        throw new Error(`Chat start error: ${startRes.statusText}`);
+        const errorBody = await startRes.text().catch(() => "");
+        let detail = errorBody;
+        try {
+          const parsed = JSON.parse(errorBody);
+          detail = parsed?.error || parsed?.reason || errorBody;
+        } catch {
+          // Keep a plain-text upstream error as-is.
+        }
+        throw new Error(
+          `Chat start error (${startRes.status}): ${detail || startRes.statusText || "Upstream request failed."}`,
+        );
       }
 
       const startData = await startRes.json();
