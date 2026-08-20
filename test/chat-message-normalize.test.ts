@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { textFromUnknown } from "../lib/chat-message-normalize";
-import { downloadUrl } from "../lib/chat-artifacts";
+import { downloadUrl, extractMediaPaths } from "../lib/chat-artifacts";
 
 test("textFromUnknown safely flattens Hermes structured content blocks", () => {
   assert.equal(
@@ -28,4 +28,12 @@ test("downloadUrl requests inline content only for previews", () => {
     downloadUrl("/home/victor/.hermes/profiles/cust/report.pdf", true),
     "/api/hermes/download?path=%2Fhome%2Fvictor%2F.hermes%2Fprofiles%2Fcust%2Freport.pdf&inline=1",
   );
+});
+
+test("extractMediaPaths removes Markdown wrappers from generated document paths", () => {
+  assert.deepEqual(
+    extractMediaPaths("Here is the file: MEDIA:`/tmp/report.pdf` and MEDIA:\"/tmp/notes.pdf\"."),
+    ["/tmp/report.pdf", "/tmp/notes.pdf"],
+  );
+  assert.deepEqual(extractMediaPaths("MEDIA:/tmp/report.pdf`"), ["/tmp/report.pdf"]);
 });

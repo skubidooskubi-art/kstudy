@@ -45,28 +45,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = upstreamRes.body!.getReader();
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-              controller.close();
-              break;
-            }
-            controller.enqueue(value);
-          }
-        } catch (error) {
-          console.error("Error reading upstream stream:", error);
-          controller.error(error);
-        } finally {
-          reader.releaseLock();
-        }
-      },
-    });
-
-    return new NextResponse(stream, {
+    // Pass the upstream body through directly. The previous custom
+    // ReadableStream could close its controller when the browser disconnected,
+    // then attempt to close/error it again when the upstream reader completed,
+    // producing "Controller is already closed" and breaking the next send.
+    return new NextResponse(upstreamRes.body, {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",

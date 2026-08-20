@@ -83,12 +83,16 @@ function nameFromPath(path: string): string {
 
 /** Find every `MEDIA:/absolute/path` marker in a block of assistant text. */
 export function extractMediaPaths(content: string): string[] {
-  if (!content || !content.includes("MEDIA:/")) return [];
+  if (!content || !content.includes("MEDIA:")) return [];
   const out: string[] = [];
-  const re = /MEDIA:(\/[^\s)]+)/g;
+  // Accept the forms Hermes commonly emits, including Markdown-wrapped paths:
+  // MEDIA:/tmp/report.pdf, MEDIA: `/tmp/report.pdf`, and MEDIA:"/tmp/report.pdf".
+  // Do not include the closing backtick/quote in the path.
+  const re = /MEDIA:\s*(?:`([^`\n]+)`|"([^"\n]+)"|'([^'\n]+)'|(\/[^\s)`'"<>]+))/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(content)) !== null) {
-    out.push(m[1]);
+    const path = (m[1] || m[2] || m[3] || m[4] || "").trim();
+    if (path) out.push(path);
   }
   return out;
 }

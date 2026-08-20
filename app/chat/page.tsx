@@ -6,6 +6,7 @@ import { signOut, useSession } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import {
   extractArtifacts,
+  extractMediaPaths,
   downloadUrl,
   iconForKind,
   kindForExt,
@@ -214,10 +215,9 @@ function parseMarkdownBlocks(text: string): MarkdownBlock[] {
     }
 
     // Check for MEDIA file path (attachment card)
-    if (line.includes("MEDIA:/")) {
-      const match = line.match(/MEDIA:(\/[^\s]+)/);
-      if (match) {
-        const absolutePath = match[1];
+    if (line.includes("MEDIA:")) {
+      const absolutePath = extractMediaPaths(line)[0];
+      if (absolutePath) {
         const fileName = absolutePath.split("/").pop() || "Document.pdf";
         blocks.push({ type: "file", path: absolutePath, name: fileName });
         i++;
@@ -340,7 +340,7 @@ function parseMarkdownBlocks(text: string): MarkdownBlock[] {
       !lines[i].trim().startsWith("|") &&
       lines[i].trim() !== "---" &&
       lines[i].trim() !== "***" &&
-      !lines[i].includes("MEDIA:/")
+      !lines[i].includes("MEDIA:")
     ) {
       paragraphText += "\n" + lines[i];
       i++;
