@@ -75,9 +75,10 @@ export async function GET(req: NextRequest) {
     // Fetch the file bytes from Hermes over the network. The container cannot
     // read the host filesystem, so this is the only path that works.
     const cookie = await getProfileCookie(req);
-    // /api/media is image-only and returns a JSON data URL. Generated PDFs and
-    // office documents must use Hermes' managed-file streaming endpoint.
-    const upstreamUrl = `${HERMES_TARGET}/api/files/download?path=${encodeURIComponent(targetPath)}`;
+    // This Hermes WebUI deployment streams generated PDFs and other files from
+    // /api/media. The KStudy proxy supplies the correct inline/attachment
+    // disposition for previews versus downloads.
+    const upstreamUrl = `${HERMES_TARGET}/api/media?path=${encodeURIComponent(targetPath)}`;
     const upstreamRes = await fetch(upstreamUrl, {
       method: "GET",
       headers: { Cookie: cookie },

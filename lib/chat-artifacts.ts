@@ -11,8 +11,8 @@
  *
  * This module walks the message list and returns a deduped, ordered list of
  * artifacts for the Files panel. Everything is derived client-side; preview and
- * download both go through the existing /api/hermes/download proxy (which
- * streams bytes from Hermes /api/media).
+ * download both go through the existing /api/hermes/download proxy, which
+ * streams bytes from Hermes /api/media.
  */
 
 export type ArtifactKind = "pdf" | "image" | "text" | "office" | "data" | "other";
