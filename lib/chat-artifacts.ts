@@ -140,6 +140,8 @@ export function extractArtifacts(messages: MinimalMessage[]): ChatArtifact[] {
 }
 
 /** Build the download/preview URL for an artifact via the existing proxy. */
-export function downloadUrl(path: string): string {
-  return `/api/hermes/download?path=${encodeURIComponent(path)}`;
+export function downloadUrl(path: string, inline = false): string {
+  const params = new URLSearchParams({ path });
+  if (inline) params.set("inline", "1");
+  return `/api/hermes/download?${params.toString()}`;
 }

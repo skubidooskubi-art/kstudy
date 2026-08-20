@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const rawPath = searchParams.get("path");
+    const inline = searchParams.get("inline") === "1";
 
     if (!rawPath) {
       return NextResponse.json({ error: "Path parameter is required" }, { status: 400 });
@@ -74,7 +75,9 @@ export async function GET(req: NextRequest) {
     // Fetch the file bytes from Hermes over the network. The container cannot
     // read the host filesystem, so this is the only path that works.
     const cookie = await getProfileCookie(req);
-    const upstreamUrl = `${HERMES_TARGET}/api/media?path=${encodeURIComponent(targetPath)}`;
+    // /api/media is image-only and returns a JSON data URL. Generated PDFs and
+    // office documents must use Hermes' managed-file streaming endpoint.
+    const upstreamUrl = `${HERMES_TARGET}/api/files/download?path=${encodeURIComponent(targetPath)}`;
     const upstreamRes = await fetch(upstreamUrl, {
       method: "GET",
       headers: { Cookie: cookie },
@@ -101,10 +104,14 @@ export async function GET(req: NextRequest) {
     const mimeType =
       MIME_MAP[ext] || upstreamType || "application/octet-stream";
 
-    // Stream the upstream body straight back to the client as an attachment.
+    const safeFilename = filename.replace(/["\\\r\n]/g, "_");
+    const disposition = inline ? "inline" : "attachment";
+
+    // Stream the upstream body straight back to the client. Inline is used by
+    // the PDF/text/image preview iframe; normal links remain downloads.
     const headers: Record<string, string> = {
       "Content-Type": mimeType,
-      "Content-Disposition": `attachment; filename="${encodeURIComponent(filename)}"`,
+      "Content-Disposition": `${disposition}; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
       "Cache-Control": "no-store",
     };
     const contentLength = upstreamRes.headers.get("content-length");

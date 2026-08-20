@@ -28,7 +28,7 @@ export type QuotaDecision = {
   limit?: number;
 };
 
-const DEFAULT_LIMIT = 1.5;
+const DEFAULT_LIMIT = 3.0;
 
 function profileFor(user: { profile_name?: string; _id?: unknown }): string {
   return user.profile_name || `cust_${String(user._id)}`;

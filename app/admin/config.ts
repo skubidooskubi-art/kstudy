@@ -33,8 +33,8 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
       id: "student",
       name: "Student Plan",
       priceUSD: 1.50,
-      priceNGN: 2000,
-      credits: 1.50,
+      priceNGN: 3000,
+      credits: 3.00,
       periodDays: 30,
       description: "Everything you need, for less than a coffee ☕",
       features: [
@@ -57,7 +57,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   },
   credits: {
     signupBonusCredits: 1.50,
-    monthlyBudgetUSD: 1.50,
+    monthlyBudgetUSD: 3.00,
   },
 };
 

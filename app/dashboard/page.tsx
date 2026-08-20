@@ -299,7 +299,7 @@ export default function DashboardPage() {
               {isSubscribed ? (
                 <div>
                   <div style={{ display: "flex", alignItems: "flex-end", gap: "0.25rem", marginBottom: "0.5rem" }}>
-                    <span style={{ fontSize: "1.8rem", fontWeight: 800 }}>₦2,000</span>
+                    <span style={{ fontSize: "1.8rem", fontWeight: 800 }}>₦3,000</span>
                     <span style={{ color: "var(--text-muted)", fontSize: "0.8rem", paddingBottom: "0.25rem" }}>/month</span>
                   </div>
                   <p style={{ fontSize: "0.8rem", color: "var(--text-secondary)", lineHeight: 1.5, marginBottom: "1.25rem" }}>
@@ -321,7 +321,7 @@ export default function DashboardPage() {
                     You are currently on the Free tier. Upgrade to Student Pro for unlimited messages, essay help, code debugging, and more!
                   </p>
                   <Link href="/#pricing" className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "0.6rem", fontSize: "0.85rem", textDecoration: "none" }}>
-                    ⚡ Upgrade to Pro (₦2k/mo)
+                    ⚡ Upgrade to Pro (₦3k/mo)
                   </Link>
                 </div>
               )}

@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
                 status:              "active",
                 profile_name:        provisionResult.profile || existingProfile || "",
                 provisioned_at:      new Date(),
-                monthly_budget_usd:  user.monthly_budget_usd ?? 1.50,
+                monthly_budget_usd:  user.monthly_budget_usd ?? 3.0,
                 used_this_month_usd: user.used_this_month_usd ?? 0,
               }
             }

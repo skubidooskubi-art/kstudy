@@ -130,7 +130,7 @@ export async function ensureWebProfile(email: string): Promise<EnsureProfileResu
             profile_name: profileName,
             status: "web_active",
             provisioned_at: new Date(),
-            monthly_budget_usd: user.monthly_budget_usd ?? 1.5,
+            monthly_budget_usd: user.monthly_budget_usd ?? 3.0,
             used_this_month_usd: user.used_this_month_usd ?? 0,
           },
         },

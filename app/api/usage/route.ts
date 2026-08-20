@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
       status = user.status || "active";
       
       // Fallback values from MongoDB
-      budget = user.monthly_budget_usd ?? 1.50;
+      budget = user.monthly_budget_usd ?? 3.00;
       used = user.used_this_month_usd ?? 0.00;
 
       // Try to read live, authoritative data from Redis

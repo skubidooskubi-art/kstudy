@@ -64,7 +64,7 @@ export async function getAuth(): Promise<any> {
         telegramBotToken:   { type: "string",  required: false  },
         telegramBotConnected:{ type: "boolean", default: false   },
         telegramChatId:       { type: "string",  required: false  },
-        monthly_budget_usd:   { type: "number",  default: 1.50    },
+        monthly_budget_usd:   { type: "number",  default: 3.00    },
         used_this_month_usd:  { type: "number",  default: 0       },
         bot_username:         { type: "string",  required: false  },
         bot_first_name:       { type: "string",  required: false  },

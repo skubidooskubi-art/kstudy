@@ -206,7 +206,7 @@ function Hero({ onPay, session }: { onPay: () => void; session: any }) {
         </h1>
 
         <p className="fade-up fade-up-d3" style={{ fontSize: "clamp(1rem, 2vw, 1.15rem)", color: "var(--text-secondary)", lineHeight: 1.7, maxWidth: 580, margin: "0 auto 2.5rem" }}>
-          KStudy connects a powerful self-hosted Hermes AI agent to your Telegram. Subscribe for <strong style={{ color: "var(--text-primary)" }}>₦2,000/month</strong> and get instant access — assignments, research, writing, scheduling, all from your phone.
+          KStudy connects a powerful self-hosted Hermes AI agent to your Telegram. Subscribe for <strong style={{ color: "var(--text-primary)" }}>₦3,000/month</strong> and get instant access — assignments, research, writing, scheduling, all from your phone.
         </p>
 
         <div className="fade-up fade-up-d4" style={{ display: "flex", gap: "1rem", justifyContent: "center", flexWrap: "wrap" }}>
@@ -216,7 +216,7 @@ function Hero({ onPay, session }: { onPay: () => void; session: any }) {
             </Link>
           ) : isLoggedIn ? (
             <button onClick={onPay} className="btn-primary" style={{ fontSize: "1rem", padding: "0.9rem 2.2rem" }}>
-              Subscribe Now — ₦2,000/mo →
+              Subscribe Now — ₦3,000/mo →
             </button>
           ) : (
             <Link href="/sign-up?redirect=%2F" className="btn-primary" style={{ fontSize: "1rem", padding: "0.9rem 2.2rem", textDecoration: "none" }}>
@@ -268,7 +268,7 @@ function Hero({ onPay, session }: { onPay: () => void; session: any }) {
 const STEPS = [
   {
     num: "01", icon: "💳",
-    title: "Subscribe — ₦2,000",
+    title: "Subscribe — ₦3,000",
     desc: "Pay securely via Paystack. Enter your email and complete checkout in under 30 seconds.",
   },
   {
@@ -337,7 +337,7 @@ function PaymentModal({ onClose, session }: { onClose: () => void; session: any 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
 
-  const AMOUNT_KOBO  = 200000;
+  const AMOUNT_KOBO  = 300000;
   const PAYSTACK_KEY = process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ?? "";
 
   function openPaystack() {
@@ -404,7 +404,7 @@ function PaymentModal({ onClose, session }: { onClose: () => void; session: any 
             <div style={{ marginBottom: "1.75rem" }}>
               <div className="badge badge-violet" style={{ marginBottom: "0.75rem" }}>🔒 Secure Checkout via Paystack</div>
               <h3 style={{ fontSize: "1.4rem", fontWeight: 800, marginBottom: "0.3rem" }}>KStudy Student Plan</h3>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>₦2,000 / month</p>
+              <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>₦3,000 / month</p>
             </div>
 
             <div style={{ background: "rgba(108,58,232,0.08)", border: "1px solid rgba(108,58,232,0.2)", borderRadius: "0.9rem", padding: "1rem", marginBottom: "1.5rem" }}>
@@ -454,7 +454,7 @@ function PaymentModal({ onClose, session }: { onClose: () => void; session: any 
                   <span style={{ width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", display: "inline-block", animation: "spin 0.6s linear infinite" }} />
                   Opening Paystack...
                 </span>
-              ) : "🔒 Pay ₦2,000 with Paystack →"}
+              ) : "🔒 Pay ₦3,000 with Paystack →"}
             </button>
             <p style={{ textAlign: "center", marginTop: "0.75rem", fontSize: "0.75rem", color: "var(--text-muted)" }}>
               🔒 Secured by Paystack
@@ -489,7 +489,7 @@ function Pricing({ onPay, session }: { onPay: () => void; session: any }) {
       <div style={{ marginBottom: "3rem" }}>
         <div className="badge badge-gold" style={{ marginBottom: "1rem" }}>💰 One Simple Plan</div>
         <h2 style={{ fontSize: "clamp(1.8rem, 4vw, 2.8rem)", fontWeight: 800, marginBottom: "1rem" }}>
-          Just <span className="gradient-text">₦2,000 a Month</span>
+          Just <span className="gradient-text">₦3,000 a Month</span>
         </h2>
         <p style={{ color: "var(--text-secondary)", maxWidth: 420, margin: "0 auto", fontSize: "1rem", lineHeight: 1.7 }}>
           Full, unlimited access to your personal AI study agent on Telegram. No tiers, no tricks.
@@ -500,7 +500,7 @@ function Pricing({ onPay, session }: { onPay: () => void; session: any }) {
         <div className="badge badge-violet" style={{ marginBottom: "1.25rem" }}>✦ Student Plan</div>
 
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "center", gap: "0.35rem", marginBottom: "0.5rem" }}>
-          <span style={{ fontSize: "5rem", fontWeight: 900, lineHeight: 1, background: "linear-gradient(135deg, var(--violet-light), var(--cyan))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>₦2k</span>
+          <span style={{ fontSize: "5rem", fontWeight: 900, lineHeight: 1, background: "linear-gradient(135deg, var(--violet-light), var(--cyan))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>₦3k</span>
           <span style={{ color: "var(--text-muted)", fontSize: "0.9rem", paddingBottom: "1rem" }}>/month</span>
         </div>
         <p style={{ color: "var(--text-secondary)", marginBottom: "2rem", fontSize: "0.9rem" }}>
@@ -530,7 +530,7 @@ function Pricing({ onPay, session }: { onPay: () => void; session: any }) {
           </Link>
         ) : isLoggedIn ? (
           <button onClick={onPay} className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "1rem", fontSize: "1rem" }}>
-            🚀 Subscribe for ₦2,000/month
+            🚀 Subscribe for ₦3,000/month
           </button>
         ) : (
           <Link href="/sign-up?redirect=%2F#pricing" className="btn-primary" style={{ width: "100%", justifyContent: "center", padding: "1rem", fontSize: "1rem", textDecoration: "none" }}>
@@ -571,7 +571,7 @@ function CTABottom({ onPay, session }: { onPay: () => void; session: any }) {
             </Link>
           ) : isLoggedIn ? (
             <button onClick={onPay} className="btn-primary" style={{ fontSize: "1rem", padding: "0.9rem 2.5rem" }}>
-              🚀 Subscribe — ₦2,000/mo
+              🚀 Subscribe — ₦3,000/mo
             </button>
           ) : (
             <Link href="/sign-up" className="btn-primary" style={{ fontSize: "1rem", padding: "0.9rem 2.5rem", textDecoration: "none" }}>

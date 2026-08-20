@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
             accessCode:         accessCode,
             // ── fresh cycle: reset usage to 0 ──
             used_this_month_usd: 0.0,
-            monthly_budget_usd:  user?.monthly_budget_usd ?? 1.50,
+            monthly_budget_usd:  3.00,
             last_used:           "",
             last_reset_at:       new Date(),
           },
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
           const profile = user?.profile_name || `cust_${user?._id}`;
           const p = redis.multi();
           p.set(`kstudy:quota:${profile}:used`, "0");
-          p.set(`kstudy:quota:${profile}:limit`, String(user?.monthly_budget_usd ?? 1.5));
+          p.set(`kstudy:quota:${profile}:limit`, String(3.0));
           p.set(`kstudy:quota:${profile}:subscription`, "1");
           p.set(`kstudy:quota:${profile}:plan`, plan);
           await p.exec();

@@ -313,7 +313,7 @@ function buildSteps(email?: string): Step[] {
             <span style={{ fontSize: "0.85rem", color: "#22c55e", fontWeight: 600 }}>KStudy Student Plan — Active</span>
           </div>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem", lineHeight: 1.7, marginBottom: "1.1rem" }}>
-            Welcome! Your ₦2,000/month subscription is confirmed. Now let's connect the Hermes AI engine to your very own personal Telegram bot — it takes about 5 minutes.
+            Welcome! Your ₦3,000/month subscription is confirmed. Now let's connect the Hermes AI engine to your very own personal Telegram bot — it takes about 5 minutes.
           </p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.65rem" }}>
             {["Unlimited AI messages", "Powered by Hermes AI", "Your own private bot", "24/7 availability"].map((i) => (

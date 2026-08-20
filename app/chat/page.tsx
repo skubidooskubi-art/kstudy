@@ -13,6 +13,7 @@ import {
 } from "@/lib/chat-artifacts";
 import { extractSources, type WebSource, type ToolEventLike } from "@/lib/chat-sources";
 import { progressForTool } from "@/lib/tool-progress";
+import { textFromUnknown } from "@/lib/chat-message-normalize";
 
 /* ─── Types ───────────────────────────────────────────────────── */
 interface Attachment {
@@ -54,6 +55,42 @@ interface ChatMessage {
   progressLabel?: string;
 }
 
+/** Normalize persisted Hermes messages before they reach React rendering. */
+function normalizeChatMessages(raw: unknown): ChatMessage[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw.flatMap((item): ChatMessage[] => {
+    if (!item || typeof item !== "object") return [];
+    const record = item as Record<string, unknown>;
+    const role = record.role === "user" || record.role === "system" ? record.role : "assistant";
+    const rawAttachments = Array.isArray(record.attachments) ? record.attachments : [];
+    const attachments = rawAttachments.flatMap((attachment): Attachment[] => {
+      if (!attachment || typeof attachment !== "object") return [];
+      const a = attachment as Record<string, unknown>;
+      if (typeof a.path !== "string" || !a.path) return [];
+      return [{
+        name: typeof a.name === "string" && a.name ? a.name : a.path.split(/[\\/]/).pop() || "File",
+        path: a.path,
+        mime: typeof a.mime === "string" ? a.mime : undefined,
+        size: typeof a.size === "number" ? a.size : undefined,
+        is_image: a.is_image === true,
+      }];
+    });
+
+    return [{
+      id: typeof record.id === "string" || typeof record.id === "number" ? record.id : undefined,
+      role,
+      content: textFromUnknown(record.content),
+      attachments: attachments.length ? attachments : undefined,
+      timestamp: typeof record.timestamp === "number" ? record.timestamp : undefined,
+      reasoning: textFromUnknown(record.reasoning) || undefined,
+      reasoningActive: record.reasoningActive === true,
+      toolEvents: Array.isArray(record.toolEvents) ? record.toolEvents as ToolEvent[] : undefined,
+      progressLabel: typeof record.progressLabel === "string" ? record.progressLabel : undefined,
+    }];
+  });
+}
+
 interface SessionItem {
   session_id: string;
   title?: string;
@@ -63,10 +100,11 @@ interface SessionItem {
 }
 
 /* ─── Text Sanitization Helpers ────────────────────────────────── */
-function sanitizeText(raw: string): string {
-  if (!raw) return "";
+function sanitizeText(raw: unknown): string {
+  const text = textFromUnknown(raw);
+  if (!text) return "";
 
-  let cleaned = raw;
+  let cleaned = text;
 
   // 1. Strip <untrusted_tool_result> wrappers
   cleaned = cleaned.replace(/<untrusted_tool_result[\s\S]*?<\/untrusted_tool_result>/g, "");
@@ -1073,11 +1111,11 @@ function FilesPanel({ artifacts, onClose, initialPreview }: {
           <div style={{ flex: 1, overflow: "auto", background: "rgba(0,0,0,0.25)" }}>
             {preview.kind === "image" ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={downloadUrl(preview.path)} alt={preview.name} style={{ width: "100%", height: "auto", display: "block" }} />
+              <img src={downloadUrl(preview.path, true)} alt={preview.name} style={{ width: "100%", height: "auto", display: "block" }} />
             ) : preview.kind === "pdf" ? (
-              <iframe src={downloadUrl(preview.path)} title={preview.name} style={{ width: "100%", height: "100%", border: "none", minHeight: 480 }} />
+              <iframe src={downloadUrl(preview.path, true)} title={preview.name} style={{ width: "100%", height: "100%", border: "none", minHeight: 480 }} />
             ) : preview.kind === "text" || preview.kind === "data" ? (
-              <iframe src={downloadUrl(preview.path)} title={preview.name} style={{ width: "100%", height: "100%", border: "none", minHeight: 480, background: "#0b1020" }} />
+              <iframe src={downloadUrl(preview.path, true)} title={preview.name} style={{ width: "100%", height: "100%", border: "none", minHeight: 480, background: "#0b1020" }} />
             ) : (
               <div style={{ padding: "2.5rem 1.5rem", textAlign: "center", color: "#94a3b8" }}>
                 <div style={{ fontSize: "2.5rem", marginBottom: "0.75rem" }}>{iconForKind(preview.kind)}</div>
@@ -1271,7 +1309,7 @@ export default function HermesChatPage() {
           if (typeof window !== "undefined") {
             localStorage.setItem("kstudy_chat_sid", data.session.session_id);
           }
-          setMessages(Array.isArray(data.session.messages) ? data.session.messages : []);
+          setMessages(normalizeChatMessages(data.session.messages));
           setChatTitle(data.session.title || titleForSid(data.session.session_id) || "");
           setMobileSidebarOpen(false);
           setFilesOpen(false);
@@ -1310,7 +1348,7 @@ export default function HermesChatPage() {
           if (data.session) {
             setSessionId(data.session.session_id);
             if (Array.isArray(data.session.messages) && data.session.messages.length > 0) {
-              setMessages(data.session.messages);
+              setMessages(normalizeChatMessages(data.session.messages));
               autoTitledRef.current = true;
             }
             if (data.session.title) setChatTitle(data.session.title);
@@ -1576,6 +1614,8 @@ export default function HermesChatPage() {
           session_id: sessionId,
           message: currentText,
           attachments: uploadedAttachments,
+          media_urls: uploadedAttachments.map((att) => att.path),
+          media_types: uploadedAttachments.map((att) => att.mime),
         }),
       });
 
